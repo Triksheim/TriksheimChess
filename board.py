@@ -4,10 +4,10 @@ import pygame as pg
 import math
 
 
-
 class ChessBoard:
     def __init__(self):
         self.board = [None for _ in range(64)]
+        self.int_board = [None for _ in range(64)]
         self.white_king_square = 4
         self.black_king_square = 60
         self.last_move = (None, None, None) # tuple with (Piece, original_sqaure, new_square)
@@ -27,6 +27,7 @@ class ChessBoard:
     def add_piece(self, piece, square):
         """ Place a piece on the board at the given square index """
         self.board[square] = piece
+        self.int_board[square] = piece.number
         if isinstance(piece, King):
             if piece.color == "white":
                 self.white_king_square = square
@@ -46,12 +47,19 @@ class ChessBoard:
         """ Move a piece to a new square on the board """
         self.last_move = (self.board[original_square], original_square, new_square)
         self.board[new_square] = self.board[original_square]
+
+        self.int_board[new_square] = self.board[original_square].number
+        self.int_board[original_square] = None
         self.board[original_square] = None
         self.board[new_square].not_moved = False
         
 
     def move_king(self, original_square, new_square, castle=False):
         """ Handle king-specific move """
+        # Move rook if castling
+        if castle:
+            self._move_rook_in_castle(original_square, castle)
+
         self.move_piece(original_square, new_square)
         # update white King
         if original_square == self.white_king_square:
@@ -59,9 +67,6 @@ class ChessBoard:
         # update black King
         elif original_square == self.black_king_square:
             self.black_king_square = new_square
-        # Move rook if castling
-        if castle:
-            self._move_rook_in_castle(original_square, castle)
 
 
     def _move_rook_in_castle(self, king_square, side):
@@ -95,13 +100,13 @@ class ChessBoard:
             return square_idx
 
 
-    def draw(self, window, checked_square=None):
+    def draw(self, window, pieces, selected_square=None, checked_square=None):
         window.fill(BLACK_COLOR)
         self.draw_board(window)
         self.draw_last_move(window)
         if checked_square is not None:
             self.draw_checked_square(window, checked_square)
-        self.draw_pieces(window)
+        self.draw_pieces(window, pieces, selected_square)
         
 
     def draw_board(self, window):
@@ -120,7 +125,29 @@ class ChessBoard:
                 pg.draw.rect(window, square_color, (row*SQUARE_SIZE, col*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
 
 
-    def draw_pieces(self, window):
+
+    def draw_pieces(self, window, piece_images, selected_square):
+        for square, piece in enumerate(self.board):
+            if piece is not None and square != selected_square:
+                row = square // 8
+                col = square % 8
+                filename = f'{piece.color}_{piece.name.lower()}.png'
+                image = piece_images[filename]
+                window.blit(image, (col*SQUARE_SIZE, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING))
+        
+
+    def draw_selected_piece(self, window, piece_images, selected_square, mouse_cords):
+        piece = self.get_piece(selected_square)
+        x_cor = mouse_cords[0]
+        y_cor = mouse_cords[1]
+        #print(x_cor, y_cor)
+        filename = f'{piece.color}_{piece.name.lower()}.png'
+        image = piece_images[filename]
+        window.blit(image, (x_cor-(SQUARE_SIZE/2), y_cor-(SQUARE_SIZE/2)))
+        
+
+
+    def draw_pieces_old(self, window):
         font = pg.font.Font('freesansbold.ttf', 25)
         for i, square in enumerate(self.board):
             if square is not None:
@@ -136,10 +163,14 @@ class ChessBoard:
 
     def draw_last_move(self, window):
         if self.last_move[2] or self.last_move[2] == 0:
-            square = self.last_move[2]
-            row =  square // 8
-            col = square % 8
+            old_square = self.last_move[1]
+            new_square = self.last_move[2]
+            row =  new_square // 8
+            col = new_square % 8
             pg.draw.rect(window, GRAY_COLOR, (col*SQUARE_SIZE, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+            row =  old_square // 8
+            col = old_square % 8
+            pg.draw.rect(window, TEST_COLOR, (col*SQUARE_SIZE, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
 
 
     def draw_checked_square(self, window, square):

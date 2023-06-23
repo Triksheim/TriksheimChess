@@ -10,6 +10,10 @@ class King(ChessPiece):
         self.moves = [-1, 1, -8 , 8, -7 , 7, -9, 9]
         self.value = 0
         self.not_moved = True
+        if color == "white":
+            self.number = 6
+        else:
+            self.number = -6
 
 class Queen(ChessPiece):
     def __init__(self, color):
@@ -17,6 +21,10 @@ class Queen(ChessPiece):
         self.name = "Queen"
         self.moves = [-7, 7, -9, 9, -1, 1, -8, 8]
         self.value = 900
+        if color == "white":
+            self.number = 5
+        else:
+            self.number = -5
 
 class Bishop(ChessPiece):
     def __init__(self, color):
@@ -24,6 +32,10 @@ class Bishop(ChessPiece):
         self.name = "Bishop"
         self.moves = [-7, 7, -9, 9]
         self.value = 300
+        if color == "white":
+            self.number = 4
+        else:
+            self.number = -4
 
 class Knight(ChessPiece):
     def __init__(self, color):
@@ -31,6 +43,10 @@ class Knight(ChessPiece):
         self.name = "Knight"
         self.moves = [-17, -15, -10, -6, 6, 10, 15, 17]
         self.value = 300
+        if color == "white":
+            self.number = 3
+        else:
+            self.number = -3
 
 class Rook(ChessPiece):
     def __init__(self, color):
@@ -39,6 +55,10 @@ class Rook(ChessPiece):
         self.moves = [-1, 1, -8, 8]
         self.value = 500
         self.not_moved = True
+        if color == "white":
+            self.number = 2
+        else:
+            self.number = -2
 
 class Pawn(ChessPiece):
     def __init__(self, color):
@@ -49,6 +69,8 @@ class Pawn(ChessPiece):
         if self.color == "white":
             self.move = 8
             self.attack_moves = [7, 9]
+            self.number = 1
         else:
             self.move = -8
             self.attack_moves = [-7, -9]
+            self.number = -1

@@ -10,16 +10,25 @@ class ChessGame():
         self.turn = "white"
         self.move_count = 0
         self.piece_count = 0
+        self.selected_square = None
         self.game_ended = False
         self.checkmate = False
         self.stalemate = False
-        self.selected_square = None
-        self.white_eval = 0
-        self.black_eval = 0
-        self.attacked_squares_by_white = set()
-        self.attacked_squares_by_black = set()
+        self.white_king_has_moved = False
+        self.black_king_has_moved = False
         self.white_king_is_pinned = False
         self.black_king_is_pinned = False
+        self.white_queen_is_pinned = False
+        self.black_queen_is_pinned = False
+        self.white_rook_has_moved = (False, False)  # Queenside and Kingside
+        self.black_rook_has_moved = (False, False)
+        self.white_eval = 0
+        self.black_eval = 0
+        # self.attacked_squares_by_white = set()
+        # self.attacked_squares_by_black = set()
+        self.attacked_squares_by_white = []
+        self.attacked_squares_by_black = []
+        
         
         
     def swap_turn(self):
@@ -82,18 +91,46 @@ class ChessGame():
             
     def evaluate_color(self, board, color):
         evaluation = 0
+        
+        if color == "white":
+            evaluation += (len(self.attacked_squares_by_white) * 2) # pts per attacked square
+            if board.black_king_square in self.attacked_squares_by_white:
+                evaluation += 30
+            if self.black_king_is_pinned:
+                evaluation += 10
+            if self.white_king_is_pinned:
+                evaluation -= 10
+            if self.black_queen_is_pinned:
+                evaluation += 10
+            if self.white_queen_is_pinned:
+                evaluation -= 10
+        else:
+            evaluation += (len(self.attacked_squares_by_black) * 2)
+            if board.white_king_square in self.attacked_squares_by_black:
+                evaluation += 30
+            if self.white_king_is_pinned:
+                evaluation += 10
+            if self.black_king_is_pinned:
+                evaluation -= 10
+            if self.white_queen_is_pinned:
+                evaluation += 10
+            if self.black_queen_is_pinned:
+                evaluation -= 10
+
         pieces = board.get_squares_with_piece(color)
         for square, piece in pieces:
             evaluation += piece.value
 
             if color == "white":
-                if square in self.attacked_squares_by_white:
-                    evaluation += 10
-                
-                if board.white_king_square in self.attacked_squares_by_black:
-                     evaluation -= 50
 
-                if isinstance(piece, Rook):
+                if isinstance(piece, King):
+                    if self.piece_count > 15:
+                        evaluation += king_early_table[63-square]
+                    else:
+                        evaluation += king_late_table[63-square]
+                    continue
+
+                elif isinstance(piece, Rook):
                     evaluation += rook_table[63-square]
                 elif isinstance(piece, Knight):
                     evaluation += knight_table[63-square]
@@ -104,21 +141,19 @@ class ChessGame():
                 elif isinstance(piece, Pawn):
                     evaluation += pawn_table[63-square]
                 
-                elif isinstance(piece, King):
-                    if self.piece_count > 10:
-                        evaluation += king_early_table[63-square]
-                    else:
-                        evaluation += king_late_table[63-square]
-                
+                def_count = self.attacked_squares_by_white.count(square)
+                evaluation += (def_count * 3)
+
 
             else:
-                if square in self.attacked_squares_by_black:
-                    evaluation += 10
+                if isinstance(piece, King):
+                    if self.piece_count > 15:
+                        evaluation += king_early_table[square]
+                    else:
+                        evaluation += king_late_table[square]
+                    continue
 
-                if board.black_king_square in self.attacked_squares_by_white:
-                    evaluation -= 50
-
-                if isinstance(piece, Rook):
+                elif isinstance(piece, Rook):
                     evaluation += rook_table[square]
                 elif isinstance(piece, Knight):
                     evaluation += knight_table[square]
@@ -128,12 +163,9 @@ class ChessGame():
                     evaluation += queen_table[square]
                 elif isinstance(piece, Pawn):
                     evaluation += pawn_table[square]
-                elif isinstance(piece, King):
-                    if self.piece_count > 10:
-                        evaluation += king_early_table[square]
-                    else:
-                        evaluation += king_late_table[square]
-
+                
+                def_count = self.attacked_squares_by_black.count(square)
+                evaluation += (def_count * 3)
 
         return evaluation, len(pieces)
     
@@ -151,7 +183,7 @@ class ChessGame():
                 board.move_king(original_square, new_square)
 
         elif isinstance(board.board[original_square], Pawn):
-            if new_square >= 55:
+            if new_square >= 56:
                 board.move_pawn_promote(original_square, new_square, "white")
             elif new_square <= 7:
                 board.move_pawn_promote(original_square, new_square, "black")
@@ -175,8 +207,10 @@ class ChessGame():
 
         if color == "white":
             self.white_king_is_pinned = False
+            self.white_queen_is_pinned = False
         else:
             self.black_king_is_pinned = False
+            self.black_queen_is_pinned = False
 
         attacked_squares = []
         for square, piece in enumerate(board.get()):
@@ -186,10 +220,15 @@ class ChessGame():
                     if squares is not None:
                         attacked_squares.extend(squares)
 
+        # if color == "white":
+        #     self.attacked_squares_by_black = set(attacked_squares)
+        # else:
+        #     self.attacked_squares_by_white = set(attacked_squares)
+
         if color == "white":
-            self.attacked_squares_by_black = set(attacked_squares)
+            self.attacked_squares_by_black = attacked_squares
         else:
-            self.attacked_squares_by_white = set(attacked_squares)
+            self.attacked_squares_by_white = attacked_squares
 
         
 
@@ -363,11 +402,18 @@ class ChessGame():
                         # If a piece has already been hit the check for valid moves is done, 
                         # but we keep looking for the next piece i the same direction to determine if a king is pinned.
                         if already_hit_a_piece:
-                            if board.get_piece(new_square).name == "King":
-                                if board.get_piece(new_square).color == "white":
-                                    self.white_king_is_pinned = True
-                                else:
-                                    self.black_king_is_pinned = True
+                            if isinstance(board.get_piece(new_square), King):
+                                if board.get_piece(new_square).color != piece.color:
+                                    if piece.color == "white":
+                                        self.black_king_is_pinned = True
+                                    else:
+                                        self.white_king_is_pinned = True
+                            elif isinstance(board.get_piece(new_square), Queen):
+                                if board.get_piece(new_square).color != piece.color:
+                                    if piece.color == "white":
+                                        self.black_queen_is_pinned = True
+                                    else:
+                                        self.white_queen_is_pinned = True
                             break
 
                         # Append valid move if piece is different color (take piece)
