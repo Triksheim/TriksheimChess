@@ -92,7 +92,7 @@ class ChessBoard:
         """Returns square index if click was on the board"""
         xcor = event.pos[0]
         ycor = event.pos[1]
-        col = int(math.floor(xcor / SQUARE_SIZE))
+        col = int(math.floor((xcor - LEFT_SIDE_PADDING) / SQUARE_SIZE))
         row = 7 - int(math.floor((ycor - TOP_PADDING) / SQUARE_SIZE))
         if 0 <= col <= 7 and 0 <= row <= 7:
             square_idx = row*8 + col
@@ -101,7 +101,7 @@ class ChessBoard:
 
 
     def draw(self, window, pieces, selected_square=None, checked_square=None):
-        window.fill(BLACK_COLOR)
+        window.fill(DARK_GRAY_COLOR)
         self.draw_board(window)
         self.draw_last_move(window)
         if checked_square is not None:
@@ -122,9 +122,27 @@ class ChessBoard:
                         square_color = DARK_SQUARE_COLOR  
                     else:
                         square_color = LIGHT_SQUARE_COLOR    
-                pg.draw.rect(window, square_color, (row*SQUARE_SIZE, col*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+                pg.draw.rect(window, square_color, (row*SQUARE_SIZE + LEFT_SIDE_PADDING, col*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+        self.draw_board_frame(window)
+
+    def draw_board_frame(self, window):
+        font = pg.font.Font('freesansbold.ttf', 40)
+        frame_color = TEST_COLOR
+        char_color = WHITE_COLOR
+        chars = "ABCDEFGH"
+        pg.draw.rect(window, frame_color, (0, TOP_PADDING-BOARD_FRAME_WIDTH,  COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2), BOARD_FRAME_WIDTH )) #top
+        pg.draw.rect(window, frame_color, (0, ROWS*SQUARE_SIZE + (TOP_PADDING),  COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2), BOARD_FRAME_WIDTH )) #bot
+        pg.draw.rect(window, frame_color, (0, TOP_PADDING-BOARD_FRAME_WIDTH,   BOARD_FRAME_WIDTH, COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2) )) #left
+        pg.draw.rect(window, frame_color, (COLS*SQUARE_SIZE + BOARD_FRAME_WIDTH, TOP_PADDING-BOARD_FRAME_WIDTH,   BOARD_FRAME_WIDTH, COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2) )) #right
+        for i, char in enumerate(chars):
+            char_text = font.render(char, 1 , char_color)
+            window.blit(char_text, ((i+1)*SQUARE_SIZE - 15 , ROWS*SQUARE_SIZE + TOP_PADDING + 10, SQUARE_SIZE, SQUARE_SIZE))
+            num = str(i+1)
+            num_text = font.render(num, 1 , char_color)
+            window.blit(num_text, ((BOARD_FRAME_WIDTH/2) - 15 , (8 - (i+1))*SQUARE_SIZE + TOP_PADDING + (BOARD_FRAME_WIDTH/2) + 5, SQUARE_SIZE, SQUARE_SIZE))
 
 
+            
 
     def draw_pieces(self, window, piece_images, selected_square):
         for square, piece in enumerate(self.board):
@@ -133,7 +151,7 @@ class ChessBoard:
                 col = square % 8
                 filename = f'{piece.color}_{piece.name.lower()}.png'
                 image = piece_images[filename]
-                window.blit(image, (col*SQUARE_SIZE, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING))
+                window.blit(image, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING))
         
 
     def draw_selected_piece(self, window, piece_images, selected_square, mouse_cords):
@@ -158,7 +176,7 @@ class ChessBoard:
                 else:
                     color = BLACK_PIECE_COLOR
                 text = font.render(square.name, 0, color)
-                window.blit(text, (col*SQUARE_SIZE + 10, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING + 40, SQUARE_SIZE, SQUARE_SIZE))
+                window.blit(text, (col*SQUARE_SIZE + 10 + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING + 40, SQUARE_SIZE, SQUARE_SIZE))
     
 
     def draw_last_move(self, window):
@@ -167,30 +185,30 @@ class ChessBoard:
             new_square = self.last_move[2]
             row =  new_square // 8
             col = new_square % 8
-            pg.draw.rect(window, GRAY_COLOR, (col*SQUARE_SIZE, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+            pg.draw.rect(window, GRAY_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
             row =  old_square // 8
             col = old_square % 8
-            pg.draw.rect(window, TEST_COLOR, (col*SQUARE_SIZE, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+            pg.draw.rect(window, LIGHT_GRAY_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
 
 
     def draw_checked_square(self, window, square):
             row =  square // 8
             col = square % 8
-            pg.draw.rect(window, CHECK_COLOR, (col*SQUARE_SIZE, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+            pg.draw.rect(window, CHECK_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
 
 
     def draw_valid_moves(self, window, moves):
         for move in moves:
             row = move // ROWS
             col = move % COLS
-            pg.draw.circle(window, GRAY_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)), ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 5)
+            pg.draw.circle(window, GRAY_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)) + LEFT_SIDE_PADDING, ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 5)
 
 
     def draw_attacked_squares(self, window, attacked_squares):
         for square in attacked_squares:
             row = square // ROWS
             col = square % COLS
-            pg.draw.circle(window, RED_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)), ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 2)
+            pg.draw.circle(window, RED_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)) + LEFT_SIDE_PADDING, ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 2)
 
 
 

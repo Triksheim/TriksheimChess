@@ -1,6 +1,38 @@
 from pieces import *
 import random
 from copy import deepcopy
+import timeit
+import time as t
+
+def generate_ai_move(ai, game, board, color, algo, depth):
+    start_time = timeit.default_timer()
+    result = ai.generate_move(game, board, algo, depth, color)
+    selected_square, new_square, eval = result[0][0], result[0][1], result[1]
+    end_time = timeit.default_timer()
+    time = end_time - start_time
+    #print(f'{color}: depth:{depth} time:{time:.2f}s')
+    return selected_square, new_square, eval, time
+
+def handle_ai_move(ai, game, board, ai_color, algo, depth, times, min_time=1, max_time=30, depth_step=1):
+    if times[-1] < min_time and len(times) > 1:
+        depth += depth_step
+    # elif times[-1] > max_time:
+    #     depth -= depth_step
+    selected_square, new_square, eval, time = generate_ai_move(ai, game, board, ai_color, algo, depth)
+    times.append(time)
+    if time < 0.5:
+        t.sleep(0.5)
+
+    if new_square is None:
+        return False    # No valid moves found
+    else:
+        game.execute_move(board, selected_square, new_square)
+        game.update_attacked_squares(board)
+        game.swap_turn()
+        game.update_attacked_squares(board)
+        game.evaluate_board(board)
+        return True
+
 
 class ChessAI:
     def __init__(self):
@@ -167,9 +199,9 @@ class ChessAI:
 
         # Check if board hash in transposition table
         if board_hash in self.transposition_table and self.transposition_table[board_hash][1] >= depth:
-            if initial_call:
-                print(self.transposition_table[board_hash][0], " Final Evaluation:", self.transposition_table[board_hash][2])
-                print("From transposision table")
+            # if initial_call:
+            #     print(self.transposition_table[board_hash][0], " Final Evaluation:", self.transposition_table[board_hash][2])
+            #     print("From transposision table")
             return self.transposition_table[board_hash][0], self.transposition_table[board_hash][2], move_path
         
         if depth == 0:
@@ -225,16 +257,16 @@ class ChessAI:
 
             if best_move == (None,None):  # No valid moves have been found
                 if game.king_in_check(board, ai_color):
-                    if initial_call:
-                        print(best_move, " Final Evaluation:", max_eval)
+                    # if initial_call:
+                    #     print(best_move, " Final Evaluation:", max_eval)
                     return best_move, float("-inf"), move_path  # Checkmate, return negative infinity
                 else:
-                    if initial_call:
-                        print(best_move, " Final Evaluation:", max_eval)
+                    # if initial_call:
+                    #     print(best_move, " Final Evaluation:", max_eval)
                     return best_move, 0, move_path  # Stalemate, return 0
             else:
-                if initial_call:
-                    print(best_move, " Final Evaluation:", max_eval, " Path:", move_path)
+                # if initial_call:
+                #     print(best_move, " Final Evaluation:", max_eval, " Path:", move_path)
                 return best_move, max_eval, move_path
 
 
@@ -257,7 +289,6 @@ class ChessAI:
                             temp_game.update_attacked_squares(temp_board)
                             temp_game.evaluate_board(temp_board)
                             
-                            #new_move_path = move_path + [(square, move)]
                             _, evaluation, path = self.minimax(temp_game, temp_board, ai_color, opponent, depth-1, alpha, beta, maximize=True, move_path=[], initial_call=False)
                             if evaluation < min_eval:
                                 min_eval = evaluation
