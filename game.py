@@ -2,15 +2,21 @@ from constants import *
 from pieces import *
 from pieces_table import *
 from copy import deepcopy
+import time as t
 
 
 
 class ChessGame():
     def __init__(self):
         self.turn = "white"
+        self.white_clock = 900
+        self.black_clock = 900
+        self.white_move_clock = 0
+        self.black_move_clock = 0
         self.move_count = 0
         self.piece_count = 0
         self.selected_square = None
+        self.ai_move = None
         self.game_ended = False
         self.checkmate = False
         self.stalemate = False
@@ -29,7 +35,14 @@ class ChessGame():
         self.attacked_squares_by_white = []
         self.attacked_squares_by_black = []
         
-        
+    def clock_tick(self):
+        t.sleep(1)
+        if self.turn == "white":
+            self.white_clock -= 1
+            self.white_move_clock += 1
+        else:
+            self.black_clock -= 1
+            self.black_move_clock += 1
         
     def swap_turn(self):
         self.turn = 'black' if self.turn == 'white' else 'white'
@@ -198,7 +211,12 @@ class ChessGame():
         else:
             board.move_piece(original_square, new_square)
         
-
+    def update_gamestate(self, board):
+        self.update_attacked_squares(board)
+        self.swap_turn()
+        self.update_attacked_squares(board)
+        self.evaluate_board(board)
+        
             
 
     def update_attacked_squares(self, board, color=None):

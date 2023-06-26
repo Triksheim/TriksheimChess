@@ -14,3 +14,7 @@ def load_piece_images(width, height):
             img = load_and_transform_image(f'image\{filename}', width, height)
             piece_images[filename] = img
     return piece_images
+
+def format_time(seconds):
+    minutes, seconds = divmod(int(seconds), 60)
+    return "{:02d}:{:02d}".format(minutes, seconds)

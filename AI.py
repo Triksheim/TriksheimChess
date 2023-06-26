@@ -24,18 +24,33 @@ def handle_ai_move(ai, game, board, ai_color, algo, depth, times, min_time=1, ma
         t.sleep(0.5)
 
     if new_square is None:
-        return False    # No valid moves found
+        #return False    # No valid moves found
+        game.ai_move = None
+        return
     else:
-        game.execute_move(board, selected_square, new_square)
-        game.update_attacked_squares(board)
-        game.swap_turn()
-        game.update_attacked_squares(board)
-        game.evaluate_board(board)
-        return True
+        # game.execute_move(board, selected_square, new_square)
+        # game.update_attacked_squares(board)
+        # game.swap_turn()
+        # game.update_attacked_squares(board)
+        # game.evaluate_board(board)
+        #return True
+        game.ai_move = (selected_square, new_square)
+        return
+
+def execute_ai_move(game, board, selected_square, new_square):
+    game.execute_move(board, selected_square, new_square)
+    game.update_attacked_squares(board)
+    game.swap_turn()
+    game.update_attacked_squares(board)
+    game.evaluate_board(board)
 
 
 class ChessAI:
-    def __init__(self):
+    def __init__(self, depth, algo, depth_change=0, ai_color="black"):
+       self.color = ai_color
+       self.depth = depth
+       self.algo = algo
+       self.depth_change = depth_change
        self.transposition_table = {}
 
     def generate_move(self, game, board, algorithm, depth=2, ai_color="black"):

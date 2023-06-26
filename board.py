@@ -127,7 +127,7 @@ class ChessBoard:
 
     def draw_board_frame(self, window):
         font = pg.font.Font('freesansbold.ttf', 40)
-        frame_color = TEST_COLOR
+        frame_color = BOARD_FRAME_COLOR
         char_color = WHITE_COLOR
         chars = "ABCDEFGH"
         pg.draw.rect(window, frame_color, (0, TOP_PADDING-BOARD_FRAME_WIDTH,  COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2), BOARD_FRAME_WIDTH )) #top
