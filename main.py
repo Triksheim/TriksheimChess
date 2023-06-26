@@ -43,6 +43,7 @@ def main():
     white_move_times = [0]
     
     start = False
+    stop = False
     running = False
     ai_finding_move = False
 
@@ -61,7 +62,7 @@ def main():
                         start = gui.mouse_click(event)
                             
                         
-            if start:
+            if start and not game.game_ended:
             
                 if gui.black_settings.radio_group_player[1].active:     # Black Player is CPU
                     for btn in gui.black_settings.radio_group_diff:
@@ -88,7 +89,8 @@ def main():
                     ai_white = False
 
                 gui.disable_settings()
-                running = True 
+                running = True
+                stop = False 
                 start = False
                     
             
@@ -182,6 +184,7 @@ def main():
                         if stop:
                             gui.enable_settings()
                             running = False
+                            
 
 
 
