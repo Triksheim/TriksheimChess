@@ -1,56 +1,45 @@
-import pygame as pg
-import timeit
-import time as t
-import threading
+if __name__ == "__main__":
+    import pygame as pg
+    import timeit
+    import time as t
+    import threading
 
-from constants import *
-from board import ChessBoard
-from game import ChessGame
-from AI import ChessAI, handle_ai_move
-from gui import draw_text, draw_stats, GUI
-from utility import load_piece_images
-
-
-piece_images = load_piece_images(width=100, height=100)
+    from constants import *
+    from board import ChessBoard
+    from game import ChessGame
+    #from AI import ChessAI, handle_ai_move
+    from AI_mp import ChessAI, handle_ai_move
+    from gui import GUI
+    
 
 def main():
     FPS = 10
     pg.init()
-    pg_quit = False
-    window = pg.display.set_mode((WIDTH, HEIGHT))
     pg.display.set_caption('Triksheim Chess')
     
+    window = pg.display.set_mode((WIDTH, HEIGHT))   # Pygame display window
     clock = pg.time.Clock()
-    font = pg.font.Font('freesansbold.ttf', 35)
-   
-    
-    # Create a new chess board
-    board = ChessBoard()
+    board = ChessBoard()    # Board data
+    game = ChessGame(white_clock=900, black_clock=900, increment=10)    # Game logic and game status
+    gui = GUI()  # Graphics and IO handler
 
-    # Game logic for chess
-    game = ChessGame()
-    tick_sec = threading.Thread(target=game.clock_tick)
-    # Set up the pieces in their starting positions
-    game.setup_posision_from_fen(board, STARTING_FEN)
-    #game.setup_posision_from_fen(board, TEST_FEN)
-    game.update_attacked_squares(board, "white")
-    game.update_attacked_squares(board, "black")
-    game.evaluate_board(board)
+    # Set up the pieces on the board based on FEN string
+    fen = STARTING_FEN
+    game.load_position_from_fen(board, fen)
 
-    gui = GUI()
-    
-    black_move_times = [0]
-    white_move_times = [0]
-    
-    start = False
-    stop = False
-    running = False
+    # setup thread for 1 sec clock count
+    second_tick = threading.Thread(target=game.clock_tick)
+
+    start_btn_press = False
+    stop_btn_press = False
+    game_running = False
     ai_finding_move = False
+    pg_quit = False
 
     while not pg_quit:
 
         # Menu / Pause loop
-        while not running and not pg_quit:
+        while not game_running and not pg_quit:
 
             for event in pg.event.get():
                 if event.type == pg.QUIT:
@@ -59,10 +48,10 @@ def main():
 
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if event.pos[0] > (COLS*SQUARE_SIZE)+(2*BOARD_FRAME_WIDTH):
-                        start = gui.mouse_click(event)
+                        start_btn_press = gui.mouse_click(event)
                             
                         
-            if start and not game.game_ended:
+            if start_btn_press and not game.game_ended:
             
                 if gui.black_settings.radio_group_player[1].active:     # Black Player is CPU
                     for btn in gui.black_settings.radio_group_diff:
@@ -89,62 +78,57 @@ def main():
                     ai_white = False
 
                 gui.disable_settings()
-                running = True
-                stop = False 
-                start = False
+                game_running = True
+                stop_btn_press = False 
+                start_btn_press = False
                     
-            
             if game.checkmate:
                 if game.turn == "white":
                     checked_square = board.white_king_square
                 else:
                     checked_square = board.black_king_square
-                board.draw(window, piece_images, game.selected_square, checked_square)
-                draw_text(window, font, "Checkmate", 10*SQUARE_SIZE, TOP_PADDING)
+                gui.draw(window, board, game, game.selected_square, checked_square)
+                gui.draw_text(window, "Checkmate", 10*SQUARE_SIZE, TOP_PADDING)
             elif game.stalemate:
-                draw_text(window, font, "Stalemate", 10*SQUARE_SIZE, TOP_PADDING)
-                board.draw(window, piece_images)
+                gui.draw(window, board, game)
+                gui.draw_text(window, "Stalemate", 10*SQUARE_SIZE, TOP_PADDING)
+            elif game.white_clock <= 0 or game.black_clock <= 0:
+                    if game.white_clock <= 0:
+                        gui.draw_text(window, "White lost on time", 10*SQUARE_SIZE, TOP_PADDING, 25)
+                    else:
+                        gui.draw_text(window, "Black lost on time", 10*SQUARE_SIZE, TOP_PADDING, 25)
             else:
-                board.draw(window, piece_images)
-
-            draw_stats(window, game, font, white_move_times, black_move_times) 
-            gui.draw(window)
+                gui.draw(window, board, game)
 
             pg.display.flip()
             clock.tick(10)
 
 
 
-
-
         # Main gameloop (started)
-        while running:
+        while game_running:
 
             if game.selected_square is None:
-                board.draw(window, piece_images)
-                draw_stats(window, game, font, white_move_times, black_move_times)
+                gui.draw(window, board, game)
 
-            if not tick_sec.is_alive():
-                tick_sec = threading.Thread(target=game.clock_tick)
-                tick_sec.start()
+            if not second_tick.is_alive():
+                second_tick = threading.Thread(target=game.clock_tick)
+                second_tick.start()
 
             if game.white_clock <= 0 or game.black_clock <= 0:
-                running = False
+                game_running = False
             
-            # if game.move_count == 6:
-            #     total_ai_time = sum(black_move_times)
-            #     print(f'AI TIME: {total_ai_time:.2f}')
 
             # AI move
             if ai_black and game.turn == ai_black.color and not ai_finding_move:
                 ai_finding_move = True
-                thread = threading.Thread(target=handle_ai_move, args=(ai_black, game, board, ai_black.color, ai_black.algo, ai_black.depth, black_move_times))
+                thread = threading.Thread(target=handle_ai_move, args=(ai_black, game, board, ai_black.color, ai_black.algo, ai_black.depth, game.black_move_times, ai_black.depth_step))
                 thread.start()
 
             # AI2 move
             elif ai_white and game.turn == ai_white.color and not ai_finding_move:  
                 ai_finding_move = True
-                thread = threading.Thread(target=handle_ai_move, args=(ai_white, game, board, ai_white.color, ai_white.algo, ai_white.depth, white_move_times))
+                thread = threading.Thread(target=handle_ai_move, args=(ai_white, game, board, ai_white.color, ai_white.algo, ai_white.depth, game.white_move_times, ai_white.depth_step ))
                 thread.start()
         
             # Check if AI move is complete:
@@ -153,40 +137,36 @@ def main():
                 ai_move = game.ai_move
                 if ai_move:
                     game.execute_move(board, ai_move[0], ai_move[1])
+                    game.clock_increment()
                     game.update_gamestate(board)
-                    board.draw(window, piece_images)
-                    draw_stats(window, game, font, white_move_times, black_move_times)
+                    gui.draw(window, board, game)
                     if game.turn == "white":
                         game.white_move_clock = 0
                     else:
                         game.black_move_clock = 0
                     start_time_player = timeit.default_timer()
                 else:
-                    running = False
+                    game_running = False
 
 
             # Check if player can move
             if not ai_finding_move:
                 if game.no_valid_moves(board):
-                    running = False
-
+                    game_running = False
 
             for event in pg.event.get():
                 if event.type == pg.QUIT:
                     pg_quit = True
-                    running = False
-
+                    game_running = False
 
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if event.pos[0] > (COLS*SQUARE_SIZE)+(2*BOARD_FRAME_WIDTH):
-                        stop = gui.mouse_click(event)
+                        stop_btn_press = gui.mouse_click(event)
 
-                        if stop:
+                        if stop_btn_press:
                             gui.enable_settings()
-                            running = False
+                            game_running = False
                             
-
-
 
                 if not ai_finding_move:
 
@@ -197,17 +177,17 @@ def main():
                             if board.contains_piece(square):
                                 if board.get_piece(square).color == game.turn:
                                     valid_moves = game.get_valid_moves(board, square)
-                                    
                                     if valid_moves:
-                                        board.draw(window, piece_images, square)
-                                        board.draw_valid_moves(window, valid_moves)
                                         game.selected_square = square
+                                        gui.draw(window, board, game, square)
+                                        gui.board.draw_valid_moves(window, valid_moves)
                                     
                     # Player move, dropping selected piece
                     elif event.type == pg.MOUSEBUTTONUP and game.selected_square is not None:
                         new_square = board.select_square_by_mouse_click(event)
                         if new_square in valid_moves:
                             game.execute_move(board, None, new_square)
+                            game.clock_increment()
                             game.update_attacked_squares(board)
                             end_time = timeit.default_timer()
                             try:
@@ -215,15 +195,14 @@ def main():
                             except:
                                 time = 0 
                             if game.turn == "white":
-                                white_move_times.append(time)
+                                game.white_move_times.append(time)
                             else:
-                                black_move_times.append(time)
+                                game.black_move_times.append(time)
                             game.swap_turn()
                             if game.turn == "white":
                                 game.white_move_clock = 0
                             else:
                                 game.black_move_clock = 0
-
 
                             if not ai_black and not ai_white:
                                 start_time_player = timeit.default_timer()
@@ -238,16 +217,14 @@ def main():
                                     checked_square = board.black_king_square
                         else:
                             checked_square = None
-
-                        board.draw(window, piece_images, checked_square)
-                        draw_stats(window, game, font, white_move_times, black_move_times)
+                        gui.draw(window, board, game, checked_square)
                         valid_moves = None
                         FPS = 10
                         
 
             # Drag selected piece
             if game.selected_square is not None:
-                FPS = 60
+                FPS = 60    # Increase FPS while dragging piece
                 if event.type == pg.MOUSEMOTION or event.type == pg.MOUSEBUTTONDOWN:
                     mouse_cords = (event.pos[0], event.pos[1])
                     if game.king_in_check(board):
@@ -257,51 +234,35 @@ def main():
                             checked_square = board.black_king_square
                     else:
                         checked_square = None
-                    board.draw(window, piece_images, game.selected_square, checked_square)
-                    draw_stats(window, game, font, white_move_times, black_move_times)
-                    board.draw_selected_piece(window, piece_images, game.selected_square, mouse_cords)
-                    board.draw_valid_moves(window, valid_moves)
+                    gui.draw(window, board, game, game.selected_square, checked_square)
+                    gui.board.draw_selected_piece(window, board, game.selected_square, mouse_cords)
+                    gui.board.draw_valid_moves(window, valid_moves)
 
 
-            if running and game.king_in_check(board) and game.selected_square is None:
+            if game_running and game.king_in_check(board) and game.selected_square is None:
                 if game.turn == "white":
                     checked_square = board.white_king_square
                 else:
                     checked_square = board.black_king_square
-                board.draw(window, piece_images, game.selected_square, checked_square)
-                draw_stats(window, game, font, white_move_times, black_move_times)
-                draw_text(window, font, "Check", 10*SQUARE_SIZE, TOP_PADDING)
+                gui.draw(window, board, game, game.selected_square, checked_square)
+                gui.draw_text(window, "Check", 10*SQUARE_SIZE, TOP_PADDING)
                 
-
-            if not running and not stop and not pg_quit:
-                
+            if not game_running and not stop_btn_press and not pg_quit:
                 game.game_ended = True
                 if game.white_clock <= 0 or game.black_clock <= 0:
-                    font = pg.font.Font('freesansbold.ttf', 25)
-                    if game.white_clock <= 0:
-                        draw_text(window, font, "White lost on time", 10*SQUARE_SIZE, TOP_PADDING)
-                    else:
-                        draw_text(window, font, "Black lost on time", 10*SQUARE_SIZE, TOP_PADDING)
-                
+                    break
                 elif game.king_in_check(board):
                     game.checkmate = True
                     if game.turn == "white":
                         checked_square = board.white_king_square
                     else:
                         checked_square = board.black_king_square
-                    board.draw(window, piece_images, game.selected_square, checked_square)
-                    draw_stats(window, game, font, white_move_times, black_move_times)
-                    draw_text(window, font, "Checkmate", 10*SQUARE_SIZE, TOP_PADDING)
                 else:
                     game.stalemate = True
-                    draw_text(window, font, "Stalemate", 10*SQUARE_SIZE, TOP_PADDING)
+                    
 
-
-            gui.draw(window)
             pg.display.flip()
             clock.tick(FPS)
-
-        
 
 
     pg.quit()

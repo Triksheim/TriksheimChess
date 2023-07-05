@@ -1,6 +1,5 @@
 from pieces import *
 from constants import *
-import pygame as pg
 import math
 
 
@@ -23,6 +22,14 @@ class ChessBoard:
                 if piece.color == color:
                     squares_and_pieces.append((square, piece))
         return squares_and_pieces
+
+    def get_squares_for_color(self, color):
+        squares = set()
+        for square, piece in enumerate(self.board):
+            if piece and piece.color == color:
+                squares.add(square)
+        return squares
+
 
     def add_piece(self, piece, square):
         """ Place a piece on the board at the given square index """
@@ -99,117 +106,3 @@ class ChessBoard:
             #print(square_idx)
             return square_idx
 
-
-    def draw(self, window, pieces, selected_square=None, checked_square=None):
-        window.fill(DARK_GRAY_COLOR)
-        self.draw_board(window)
-        self.draw_last_move(window)
-        if checked_square is not None:
-            self.draw_checked_square(window, checked_square)
-        self.draw_pieces(window, pieces, selected_square)
-        
-
-    def draw_board(self, window):
-        for row in range(ROWS):
-            for col in range (COLS):
-                if row % 2 == 0:
-                    if col % 2 == 0:
-                        square_color = LIGHT_SQUARE_COLOR
-                    else:
-                        square_color = DARK_SQUARE_COLOR   
-                else: # Alternate row starting color
-                    if col % 2 == 0:
-                        square_color = DARK_SQUARE_COLOR  
-                    else:
-                        square_color = LIGHT_SQUARE_COLOR    
-                pg.draw.rect(window, square_color, (row*SQUARE_SIZE + LEFT_SIDE_PADDING, col*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
-        self.draw_board_frame(window)
-
-    def draw_board_frame(self, window):
-        font = pg.font.Font('freesansbold.ttf', 40)
-        frame_color = BOARD_FRAME_COLOR
-        char_color = WHITE_COLOR
-        chars = "ABCDEFGH"
-        pg.draw.rect(window, frame_color, (0, TOP_PADDING-BOARD_FRAME_WIDTH,  COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2), BOARD_FRAME_WIDTH )) #top
-        pg.draw.rect(window, frame_color, (0, ROWS*SQUARE_SIZE + (TOP_PADDING),  COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2), BOARD_FRAME_WIDTH )) #bot
-        pg.draw.rect(window, frame_color, (0, TOP_PADDING-BOARD_FRAME_WIDTH,   BOARD_FRAME_WIDTH, COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2) )) #left
-        pg.draw.rect(window, frame_color, (COLS*SQUARE_SIZE + BOARD_FRAME_WIDTH, TOP_PADDING-BOARD_FRAME_WIDTH,   BOARD_FRAME_WIDTH, COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2) )) #right
-        for i, char in enumerate(chars):
-            char_text = font.render(char, 1 , char_color)
-            window.blit(char_text, ((i+1)*SQUARE_SIZE - 15 , ROWS*SQUARE_SIZE + TOP_PADDING + 10, SQUARE_SIZE, SQUARE_SIZE))
-            num = str(i+1)
-            num_text = font.render(num, 1 , char_color)
-            window.blit(num_text, ((BOARD_FRAME_WIDTH/2) - 15 , (8 - (i+1))*SQUARE_SIZE + TOP_PADDING + (BOARD_FRAME_WIDTH/2) + 5, SQUARE_SIZE, SQUARE_SIZE))
-
-
-            
-
-    def draw_pieces(self, window, piece_images, selected_square):
-        for square, piece in enumerate(self.board):
-            if piece is not None and square != selected_square:
-                row = square // 8
-                col = square % 8
-                filename = f'{piece.color}_{piece.name.lower()}.png'
-                image = piece_images[filename]
-                window.blit(image, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING))
-        
-
-    def draw_selected_piece(self, window, piece_images, selected_square, mouse_cords):
-        piece = self.get_piece(selected_square)
-        x_cor = mouse_cords[0]
-        y_cor = mouse_cords[1]
-        #print(x_cor, y_cor)
-        filename = f'{piece.color}_{piece.name.lower()}.png'
-        image = piece_images[filename]
-        window.blit(image, (x_cor-(SQUARE_SIZE/2), y_cor-(SQUARE_SIZE/2)))
-        
-
-
-    def draw_pieces_old(self, window):
-        font = pg.font.Font('freesansbold.ttf', 25)
-        for i, square in enumerate(self.board):
-            if square is not None:
-                row =  i // 8
-                col = i % 8
-                if square.color == 'white':
-                    color = WHITE_PIECE_COLOR
-                else:
-                    color = BLACK_PIECE_COLOR
-                text = font.render(square.name, 0, color)
-                window.blit(text, (col*SQUARE_SIZE + 10 + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING + 40, SQUARE_SIZE, SQUARE_SIZE))
-    
-
-    def draw_last_move(self, window):
-        if self.last_move[2] or self.last_move[2] == 0:
-            old_square = self.last_move[1]
-            new_square = self.last_move[2]
-            row =  new_square // 8
-            col = new_square % 8
-            pg.draw.rect(window, GRAY_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
-            row =  old_square // 8
-            col = old_square % 8
-            pg.draw.rect(window, LIGHT_GRAY_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
-
-
-    def draw_checked_square(self, window, square):
-            row =  square // 8
-            col = square % 8
-            pg.draw.rect(window, CHECK_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
-
-
-    def draw_valid_moves(self, window, moves):
-        for move in moves:
-            row = move // ROWS
-            col = move % COLS
-            pg.draw.circle(window, GRAY_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)) + LEFT_SIDE_PADDING, ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 5)
-
-
-    def draw_attacked_squares(self, window, attacked_squares):
-        for square in attacked_squares:
-            row = square // ROWS
-            col = square % COLS
-            pg.draw.circle(window, RED_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)) + LEFT_SIDE_PADDING, ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 2)
-
-
-
-   

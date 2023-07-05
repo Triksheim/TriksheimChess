@@ -7,10 +7,11 @@ import time as t
 
 
 class ChessGame():
-    def __init__(self):
+    def __init__(self, white_clock=900, black_clock=900, increment=10):
         self.turn = "white"
-        self.white_clock = 900
-        self.black_clock = 900
+        self.white_clock = white_clock
+        self.black_clock = black_clock
+        self.time_increment = increment
         self.white_move_clock = 0
         self.black_move_clock = 0
         self.move_count = 0
@@ -30,10 +31,10 @@ class ChessGame():
         self.black_rook_has_moved = (False, False)
         self.white_eval = 0
         self.black_eval = 0
-        # self.attacked_squares_by_white = set()
-        # self.attacked_squares_by_black = set()
         self.attacked_squares_by_white = []
         self.attacked_squares_by_black = []
+        self.black_move_times = [0]
+        self.white_move_times = [0]
         
     def clock_tick(self):
         t.sleep(1)
@@ -43,7 +44,13 @@ class ChessGame():
         else:
             self.black_clock -= 1
             self.black_move_clock += 1
-        
+
+    def clock_increment(self):
+        if self.turn == "white":
+            self.white_clock += self.time_increment   
+        else:
+            self.black_clock += self.time_increment
+
     def swap_turn(self):
         self.turn = 'black' if self.turn == 'white' else 'white'
 
@@ -70,7 +77,7 @@ class ChessGame():
         return True
             
 
-    def setup_posision_from_fen(self, board, fen):
+    def load_position_from_fen(self, board, fen):
         """Places pieces on the board based on the FEN string"""
         pieces = {'p':Pawn, 'r':Rook , 'n':Knight, 'b':Bishop, 'q':Queen, 'k':King}
         file = 0
@@ -91,6 +98,8 @@ class ChessGame():
                     board_index = rank * 8 + file
                     board.add_piece(piece, board_index)
                     file += 1
+        self.update_attacked_squares(board, "white")
+        self.update_attacked_squares(board, "black")
         self.evaluate_board(board)
 
 
@@ -547,6 +556,5 @@ class ChessGame():
 
     def eligible_to_en_passant(self, board, neighbour_piece):
         last_piece, last_move_original_square, last_move_to_square = board.last_move
-
         return isinstance(last_piece, Pawn) and abs(last_move_to_square - last_move_original_square) == 16 and (last_piece == neighbour_piece)
 

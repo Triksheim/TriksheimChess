@@ -1,90 +1,13 @@
 from constants import *
 import pygame as pg
-from utility import format_time
+import utility
 import copy
-
-# All GUI excluding board
-
-def draw_text(window, font, text, x, y, color=WHITE_COLOR):
-    render_text = font.render(text, 1, color)
-    window.blit(render_text, (x, y, SQUARE_SIZE, SQUARE_SIZE))
-
-def draw_eval(window, font, game):
-    draw_text(window, font, f'White eval: {game.white_eval}', SQUARE_SIZE/2, BOARD_FRAME_WIDTH+10 + 9*SQUARE_SIZE)
-    draw_text(window, font, f'Black eval: {game.black_eval}', SQUARE_SIZE/2, (BOARD_FRAME_WIDTH/2)-10 + 0*SQUARE_SIZE)
-
-def draw_move_time(window,game, font, color, time, position_multiplier):
-    font = pg.font.Font('freesansbold.ttf', 25)
-    if color == "white":
-        #draw_text(window, font, f'{format_time(time)}', (COLS-1)*SQUARE_SIZE-20, BOARD_FRAME_WIDTH+15 + position_multiplier*SQUARE_SIZE)
-        draw_text(window, font, f'{format_time(game.white_move_clock)}', (COLS-1)*SQUARE_SIZE-20, BOARD_FRAME_WIDTH+15 + position_multiplier*SQUARE_SIZE)
-    else:
-        #draw_text(window, font, f'{format_time(time)}', (COLS-1)*SQUARE_SIZE-20, (BOARD_FRAME_WIDTH/2)-5 + position_multiplier*SQUARE_SIZE)
-        draw_text(window, font, f'{format_time(game.black_move_clock)}', (COLS-1)*SQUARE_SIZE-20, (BOARD_FRAME_WIDTH/2)-5 + position_multiplier*SQUARE_SIZE)
-
-def draw_clock(window, game, font):
-    draw_text(window, font, f'{format_time(game.white_clock)}', COLS*SQUARE_SIZE, BOARD_FRAME_WIDTH+10 + 9*SQUARE_SIZE)
-    draw_text(window, font, f'{format_time(game.black_clock)}', COLS*SQUARE_SIZE, (BOARD_FRAME_WIDTH/2)-10 + 0*SQUARE_SIZE)
-
-
-def draw_stats(window, game, font, white_time, black_time):
-    #draw_eval(window, font, game)  
-    draw_move_time(window, game, font, "black", black_time[-1], 0)
-    draw_move_time(window, game, font, "white", white_time[-1], 9)
-    draw_clock(window, game, font)
-
-def mouse_click_on_gui(event):
-    x = event.pos[0]
-    y = event.pos[1]
-
-class Button:
-    def __init__(self, player=None, text="button", color=GRAY_COLOR, active_frame_color=LIGHT_GREEN_COLOR, frame_color=WHITE_COLOR, text_color=WHITE_COLOR, width=150, height=50, position=(1000,500), font_size=20):
-        self.active = False
-        self.enabled = True
-        self.player = player
-        self.text = text
-        self.color = color
-        self.current_frame_color = frame_color
-        self.active_frame_color = active_frame_color
-        self.frame_color = frame_color
-        self.text_color = text_color
-        self.width = width
-        self.height = height
-        self.x = position[0]
-        self.y = position[1]
-        self.font = pg.font.Font('freesansbold.ttf', font_size)
-
-    def activate(self):
-        if self.enabled:
-            self.active = True
-            self.current_frame_color = copy.copy(self.active_frame_color)
-
-    def deactivate(self):
-        self.active = False
-        self.current_frame_color = copy.copy(self.frame_color)
-
-    def enable(self):
-        self.enabled = True
-        self.text_color = WHITE_COLOR
-
-    def disable(self, deactivate=True):
-        self.enabled = False
-        self.text_color = DARK_GRAY_COLOR
-        if deactivate:
-            self.deactivate()
-
-    def draw(self, window):
-        pg.draw.rect(window, self.current_frame_color, (self.x, self.y, self.width, self.height))
-        pg.draw.rect(window, self.color, (self.x+5, self.y+5, self.width-10, self.height-10))
-        draw_text(window, self.font, self.text, self.x+10, self.y+15, self.text_color)
-
-    
+ 
 class GUI:
     def __init__(self):
+        self.board = BoardGUI()
         self.white_settings = PlayerSettings("white")
-        self.white_settings.reset()
         self.black_settings = PlayerSettings("black")
-        self.black_settings.reset()
         self.start_button = Button(text="Start", frame_color=DARK_GREEN_COLOR, active_frame_color=LIGHT_GREEN_COLOR, color=GRAY_COLOR,width=150, height=50, position=(1025, 600), font_size=30)
         self.buttons = self.list_buttons()
 
@@ -131,13 +54,82 @@ class GUI:
         self.black_settings.enable()
         self.white_settings.enable()
 
-    def draw(self, window):
+    def draw(self, window, board, game, selected_square=None, checked_square=None ):
+        self.board.draw(window, board, selected_square, checked_square)
         self.white_settings.draw(window)
         self.black_settings.draw(window)
         self.start_button.draw(window)
+        self.draw_stats(window, game)
+
+    def draw_stats(self, window, game):
+        #draw_eval(window, font, game)  
+        self.draw_move_time(window, game, "black", 0)
+        self.draw_move_time(window, game, "white", 9)
+        self.draw_clock(window, game)
+
+    def draw_text(self, window, text, x, y, font_size=35, color=WHITE_COLOR):
+        font = pg.font.Font('freesansbold.ttf', font_size)
+        render_text = font.render(text, 1, color)
+        window.blit(render_text, (x, y, SQUARE_SIZE, SQUARE_SIZE))
+
+    def draw_eval(self, window, game):
+        self.draw_text(window, f'White eval: {game.white_eval}', SQUARE_SIZE/2, BOARD_FRAME_WIDTH+10 + 9*SQUARE_SIZE)
+        self.draw_text(window, f'Black eval: {game.black_eval}', SQUARE_SIZE/2, (BOARD_FRAME_WIDTH/2)-10 + 0*SQUARE_SIZE)
+
+    def draw_move_time(self, window, game, color, position_multiplier):
+        font_size = 25
+        if color == "white":
+            self.draw_text(window, f'{utility.format_time(game.white_move_clock)}', (COLS-1)*SQUARE_SIZE-20, BOARD_FRAME_WIDTH+15 + position_multiplier*SQUARE_SIZE, font_size)
+        else: 
+            self.draw_text(window, f'{utility.format_time(game.black_move_clock)}', (COLS-1)*SQUARE_SIZE-20, (BOARD_FRAME_WIDTH/2)-5 + position_multiplier*SQUARE_SIZE, font_size)
+
+    def draw_clock(self, window, game):
+        self.draw_text(window, f'{utility.format_time(game.white_clock)}', COLS*SQUARE_SIZE, BOARD_FRAME_WIDTH+10 + 9*SQUARE_SIZE)
+        self.draw_text(window, f'{utility.format_time(game.black_clock)}', COLS*SQUARE_SIZE, (BOARD_FRAME_WIDTH/2)-10 + 0*SQUARE_SIZE)
 
 
-class PlayerSettings:
+class Button(GUI):
+    def __init__(self, player=None, text="button", color=GRAY_COLOR, active_frame_color=LIGHT_GREEN_COLOR, frame_color=WHITE_COLOR, text_color=WHITE_COLOR, width=150, height=50, position=(1000,500), font_size=20):
+        self.active = False
+        self.enabled = True
+        self.player = player
+        self.text = text
+        self.color = color
+        self.current_frame_color = frame_color
+        self.active_frame_color = active_frame_color
+        self.frame_color = frame_color
+        self.text_color = text_color
+        self.width = width
+        self.height = height
+        self.x = position[0]
+        self.y = position[1]
+        self.font_size = font_size
+
+    def activate(self):
+        if self.enabled:
+            self.active = True
+            self.current_frame_color = copy.copy(self.active_frame_color)
+
+    def deactivate(self):
+        self.active = False
+        self.current_frame_color = copy.copy(self.frame_color)
+
+    def enable(self):
+        self.enabled = True
+        self.text_color = WHITE_COLOR
+
+    def disable(self, deactivate=True):
+        self.enabled = False
+        self.text_color = DARK_GRAY_COLOR
+        if deactivate:
+            self.deactivate()
+
+    def draw(self, window):
+        pg.draw.rect(window, self.current_frame_color, (self.x, self.y, self.width, self.height))
+        pg.draw.rect(window, self.color, (self.x+5, self.y+5, self.width-10, self.height-10))
+        self.draw_text(window, self.text, self.x+10, self.y+15, self.font_size, self.text_color)   
+
+class PlayerSettings(GUI):
     def __init__(self, color):
         self.enabled = True
         self.radio_group_player = []
@@ -161,6 +153,8 @@ class PlayerSettings:
                 self.radio_group_player.append(Button(player=color, text=label, frame_color=self.frame_color, position=(self.x[i],self.y[i]), width=width[i]))
             else:
                 self.radio_group_diff.append(Button(player=color, text=label, frame_color=self.frame_color, position=(self.x[i],self.y[i]), width=width[i] ))
+        self.apply_default_settings()
+
 
     def disable(self):
         self.enabled = False
@@ -177,11 +171,11 @@ class PlayerSettings:
             btn.enable()
 
 
-    def reset(self):
+    def apply_default_settings(self):
         if self.color == "white":
             self.radio_group_player[0].activate()
             for btn in self.radio_group_diff:
-                btn.deactivate()
+                btn.disable()
         else:
             self.radio_group_player[1].activate()
             for btn in self.radio_group_diff:
@@ -226,3 +220,112 @@ class PlayerSettings:
             btn.draw(window)
         for btn in self.radio_group_diff:
             btn.draw(window)
+
+
+
+class BoardGUI:
+    def __init__(self):
+        self.piece_images = utility.load_piece_images(width=SQUARE_SIZE, height=SQUARE_SIZE)
+
+
+    def draw(self, window, board, selected_square=None, checked_square=None):
+        window.fill(DARK_GRAY_COLOR)
+        self.draw_board(window)
+        self.draw_last_move(window, board)
+        if checked_square is not None:
+            self.draw_checked_square(window, checked_square)
+        self.draw_pieces(window, board, selected_square)
+        
+
+    def draw_board(self, window):
+        for row in range(ROWS):
+            for col in range (COLS):
+                if row % 2 == 0:
+                    if col % 2 == 0:
+                        square_color = LIGHT_SQUARE_COLOR
+                    else:
+                        square_color = DARK_SQUARE_COLOR   
+                else: # Alternate row starting color
+                    if col % 2 == 0:
+                        square_color = DARK_SQUARE_COLOR  
+                    else:
+                        square_color = LIGHT_SQUARE_COLOR    
+                pg.draw.rect(window, square_color, (row*SQUARE_SIZE + LEFT_SIDE_PADDING, col*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+        self.draw_board_frame(window)
+
+    def draw_board_frame(self, window):
+        font = pg.font.Font('freesansbold.ttf', 40)
+        frame_color = BOARD_FRAME_COLOR
+        char_color = WHITE_COLOR
+        chars = "ABCDEFGH"
+        pg.draw.rect(window, frame_color, (0, TOP_PADDING-BOARD_FRAME_WIDTH,  COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2), BOARD_FRAME_WIDTH )) #top
+        pg.draw.rect(window, frame_color, (0, ROWS*SQUARE_SIZE + (TOP_PADDING),  COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2), BOARD_FRAME_WIDTH )) #bot
+        pg.draw.rect(window, frame_color, (0, TOP_PADDING-BOARD_FRAME_WIDTH,   BOARD_FRAME_WIDTH, COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2) )) #left
+        pg.draw.rect(window, frame_color, (COLS*SQUARE_SIZE + BOARD_FRAME_WIDTH, TOP_PADDING-BOARD_FRAME_WIDTH,   BOARD_FRAME_WIDTH, COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2) )) #right
+        for i, char in enumerate(chars):
+            char_text = font.render(char, 1 , char_color)
+            window.blit(char_text, ((i+1)*SQUARE_SIZE - 15 , ROWS*SQUARE_SIZE + TOP_PADDING + 10, SQUARE_SIZE, SQUARE_SIZE))
+            num = str(i+1)
+            num_text = font.render(num, 1 , char_color)
+            window.blit(num_text, ((BOARD_FRAME_WIDTH/2) - 15 , (8 - (i+1))*SQUARE_SIZE + TOP_PADDING + (BOARD_FRAME_WIDTH/2) + 5, SQUARE_SIZE, SQUARE_SIZE))
+
+
+            
+
+    def draw_pieces(self, window, board, selected_square):
+        for square, piece in enumerate(board.get()):
+            if piece is not None and square != selected_square:
+                row = square // 8
+                col = square % 8
+                filename = f'{piece.color}_{piece.name.lower()}.png'
+                image = self.piece_images[filename]
+                window.blit(image, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING))
+        
+
+    def draw_selected_piece(self, window, board, selected_square, mouse_cords):
+        piece = board.get_piece(selected_square)
+        x_cor = mouse_cords[0]
+        y_cor = mouse_cords[1]
+        #print(x_cor, y_cor)
+        filename = f'{piece.color}_{piece.name.lower()}.png'
+        image = self.piece_images[filename]
+        window.blit(image, (x_cor-(SQUARE_SIZE/2), y_cor-(SQUARE_SIZE/2)))
+        
+
+
+   
+
+    def draw_last_move(self, window, board):
+        if board.last_move[2] or board.last_move[2] == 0:
+            old_square = board.last_move[1]
+            new_square = board.last_move[2]
+            row =  new_square // 8
+            col = new_square % 8
+            pg.draw.rect(window, GRAY_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+            row =  old_square // 8
+            col = old_square % 8
+            pg.draw.rect(window, LIGHT_GRAY_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+
+
+    def draw_checked_square(self, window, square):
+            row =  square // 8
+            col = square % 8
+            pg.draw.rect(window, CHECK_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
+
+
+    def draw_valid_moves(self, window, moves):
+        for move in moves:
+            row = move // ROWS
+            col = move % COLS
+            pg.draw.circle(window, GRAY_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)) + LEFT_SIDE_PADDING, ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 5)
+
+
+    def draw_attacked_squares(self, window, attacked_squares):
+        for square in attacked_squares:
+            row = square // ROWS
+            col = square % COLS
+            pg.draw.circle(window, RED_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)) + LEFT_SIDE_PADDING, ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 2)
+
+
+
+   

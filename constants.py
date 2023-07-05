@@ -26,7 +26,7 @@ TEST_COLOR = (105,75,55)
 
 STARTING_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNBQKBNR"
 UNFAIR_FEN = "rnbqkbnr/pppppppp/8/8/8/8/PPPPPPPP/RNQQKQNR"
-TEST_FEN = "8/4k3/8/8/8/8/3R4/K2R4"
+TEST_FEN = "4nr1k/1bq3pp/5p2/1p2pNQ1/3pP3/1B1P3R/1PP3PP/6K1"
 
 
 EASY_MODE = {"depth": 1, "algo": "minimax", "depth_change": 0}
