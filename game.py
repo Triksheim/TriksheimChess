@@ -21,6 +21,7 @@ class ChessGame():
         self.game_ended = False
         self.checkmate = False
         self.stalemate = False
+        self.repetition = False
         self.white_king_has_moved = False
         self.black_king_has_moved = False
         self.white_king_is_pinned = False
@@ -104,16 +105,70 @@ class ChessGame():
 
 
     def evaluate_board(self, board):
+        # board_state = board.board_state_log[-1]
+        # if board.board_state_log.count(board_state) >= 3:
+        #     # repetition
+        #     #self.white_eval = 0
+        #     #self.black_eval = 0
+        #     #self.stalemate = True
+        #     #self.game_ended = True
+        #     self.repetition = True
+             
         white_eval, white_count = self.evaluate_color(board, "white")
         black_eval, black_count = self.evaluate_color(board, "black")
         self.white_eval = white_eval
         self.black_eval = black_eval
         self.piece_count = white_count + black_count
+        if self.piece_count < 10:
+            if self.white_eval > self.black_eval + 500:
+                
+                self.king_chase(board, "white")
+            elif self.black_eval > self.white_eval + 500:
+                
+                self.king_chase(board, "black")
+
+    def square_to_row_col(self, square):
+        row =  square // 8
+        col = square % 8
+        return row, col
+
+    def king_chase(self, board, color):
+        w_row, w_col = self.square_to_row_col(board.white_king_square)
+        b_row, b_col = self.square_to_row_col(board.black_king_square)
+        distance = abs(w_row - b_row) + abs(w_col - b_col)
+        if color == "white":
+            self.white_eval -= distance * 200
+            if b_row == 5 or b_col == 5:
+                self.white_eval += 100
+            if b_row == 6 or b_col == 6:
+                self.white_eval += 200
+            elif b_row == 7 or b_col == 7:
+                self.white_eval += 300
         
+        else:
+            self.black_eval -= distance * 200
+            if w_row == 5:
+                self.black_eval += 100
+            if w_col == 5:
+                self.black_eval += 100
+
+            if w_row == 6:
+                self.black_eval += 200
+            if w_col == 6:
+                self.black_eval += 200
+
+            if w_row == 7:
+                self.black_eval += 300
+            if w_col == 7:
+                self.black_eval += 300
+
+            
             
     def evaluate_color(self, board, color):
         evaluation = 0
         
+
+
         if color == "white":
             evaluation += (len(self.attacked_squares_by_white) * 2) # pts per attacked square
             if board.black_king_square in self.attacked_squares_by_white:
@@ -146,7 +201,7 @@ class ChessGame():
             if color == "white":
 
                 if isinstance(piece, King):
-                    if self.piece_count > 15:
+                    if self.piece_count > 10:
                         evaluation += king_early_table[63-square]
                     else:
                         evaluation += king_late_table[63-square]
@@ -169,7 +224,7 @@ class ChessGame():
 
             else:
                 if isinstance(piece, King):
-                    if self.piece_count > 15:
+                    if self.piece_count > 10:
                         evaluation += king_early_table[square]
                     else:
                         evaluation += king_late_table[square]
@@ -224,7 +279,11 @@ class ChessGame():
         self.update_attacked_squares(board)
         self.swap_turn()
         self.update_attacked_squares(board)
-        self.evaluate_board(board)
+        #self.evaluate_board(board)
+        board_state = board.board_state_log[-1]
+        if board.board_state_log.count(board_state) >= 3:
+            self.repetition = True
+            
         
             
 
@@ -246,11 +305,6 @@ class ChessGame():
                     squares = self._get_attacked_squares(board, piece, square)
                     if squares is not None:
                         attacked_squares.extend(squares)
-
-        # if color == "white":
-        #     self.attacked_squares_by_black = set(attacked_squares)
-        # else:
-        #     self.attacked_squares_by_white = set(attacked_squares)
 
         if color == "white":
             self.attacked_squares_by_black = attacked_squares

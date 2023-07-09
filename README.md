@@ -11,5 +11,8 @@ The move generation for AI is developed based on the Minimax algorithm with a fe
 - Alpha- beta pruning
 - Move ordering
 - Transposition table for board states (memoization)
+- Multiprocessing for multicore CPU utilization
   
-![game ss](https://github.com/Triksheim/TriksheimChess/assets/59808763/871f6fe2-2ae0-44ec-a103-a3b836f96319)
+<img src="https://github.com/Triksheim/TriksheimChess/assets/59808763/36fa9ea7-0988-499e-b1c2-84691684cc21" width="800, height=400" >
+
+<img src="https://github.com/Triksheim/TriksheimChess/assets/59808763/1121a994-7814-4f02-8249-9cc9f5b32072" width="800, height=400" >

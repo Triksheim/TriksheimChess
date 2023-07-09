@@ -10,6 +10,8 @@ class ChessBoard:
         self.white_king_square = 4
         self.black_king_square = 60
         self.last_move = (None, None, None) # tuple with (Piece, original_sqaure, new_square)
+        self.move_log = []
+        self.board_state_log = [None]
         
         
     def get(self):
@@ -59,6 +61,9 @@ class ChessBoard:
         self.int_board[original_square] = None
         self.board[original_square] = None
         self.board[new_square].not_moved = False
+
+        self.move_log.append(self.last_move)
+        self.board_state_log.append(hash(tuple(self.int_board)))
         
 
     def move_king(self, original_square, new_square, castle=False):

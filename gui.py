@@ -8,7 +8,7 @@ class GUI:
         self.board = BoardGUI()
         self.white_settings = PlayerSettings("white")
         self.black_settings = PlayerSettings("black")
-        self.start_button = Button(text="Start", frame_color=DARK_GREEN_COLOR, active_frame_color=LIGHT_GREEN_COLOR, color=GRAY_COLOR,width=150, height=50, position=(1025, 600), font_size=30)
+        self.start_button = Button(text="Start", frame_color=DARK_GREEN_COLOR, active_frame_color=LIGHT_GREEN_COLOR, color=GRAY_COLOR,width=150, height=50, position=(1025, 750), font_size=30)
         self.buttons = self.list_buttons()
 
     def list_buttons(self):
@@ -28,9 +28,14 @@ class GUI:
         x = event.pos[0]
         y = event.pos[1]  
 
-        if y > self.black_settings.y[0] and y < self.white_settings.y[0]:
+        # if y > self.black_settings.y[0] and y < self.white_settings.y[0]:
+        #     self.black_settings.mouse_click(event)
+        # elif y > self.white_settings.y[0]:
+        #     self.white_settings.mouse_click(event)
+
+        if y >= self.black_settings.y[0] and y <= (self.black_settings.y[0] + self.black_settings.height):
             self.black_settings.mouse_click(event)
-        elif y > self.white_settings.y[0]:
+        elif y > self.white_settings.y[0] and y <= (self.white_settings.y[0] + self.white_settings.height):
             self.white_settings.mouse_click(event)
 
         elif x > self.start_button.x and x < (self.start_button.x + self.start_button.width)  and \
@@ -145,7 +150,9 @@ class PlayerSettings(GUI):
             self.y = (840, 840, 895 ,895 ,895)
         else:
             self.frame_color = DARK_SQUARE_COLOR
-            self.y = (715, 715 ,770, 770 ,770)
+            #self.y = (715, 715 ,770, 770 ,770)
+            begin_at = TOP_PADDING-BOARD_FRAME_WIDTH+5
+            self.y = (begin_at, begin_at ,begin_at+55, begin_at+55 ,begin_at+55)
 
         for i, label in enumerate(button_labels):
             name = f'{label.lower()}'
@@ -256,6 +263,7 @@ class BoardGUI:
     def draw_board_frame(self, window):
         font = pg.font.Font('freesansbold.ttf', 40)
         frame_color = BOARD_FRAME_COLOR
+        seperator_line_color = LIGHT_GRAY_COLOR
         char_color = WHITE_COLOR
         chars = "ABCDEFGH"
         pg.draw.rect(window, frame_color, (0, TOP_PADDING-BOARD_FRAME_WIDTH,  COLS*SQUARE_SIZE + (BOARD_FRAME_WIDTH*2), BOARD_FRAME_WIDTH )) #top
@@ -268,6 +276,10 @@ class BoardGUI:
             num = str(i+1)
             num_text = font.render(num, 1 , char_color)
             window.blit(num_text, ((BOARD_FRAME_WIDTH/2) - 15 , (8 - (i+1))*SQUARE_SIZE + TOP_PADDING + (BOARD_FRAME_WIDTH/2) + 5, SQUARE_SIZE, SQUARE_SIZE))
+        pg.draw.rect(window, seperator_line_color, (BOARD_FRAME_WIDTH-5, TOP_PADDING-5,  COLS*SQUARE_SIZE+5 , 5 )) #top
+        pg.draw.rect(window, seperator_line_color, (BOARD_FRAME_WIDTH-5, ROWS*SQUARE_SIZE + (TOP_PADDING),  COLS*SQUARE_SIZE + 5, 5 )) #bot
+        pg.draw.rect(window, seperator_line_color, (BOARD_FRAME_WIDTH-5, TOP_PADDING-5,   5, COLS*SQUARE_SIZE + 5 )) #left
+        pg.draw.rect(window, seperator_line_color, (COLS*SQUARE_SIZE + BOARD_FRAME_WIDTH, TOP_PADDING-5,   5, COLS*SQUARE_SIZE + 10) ) #right
 
 
             

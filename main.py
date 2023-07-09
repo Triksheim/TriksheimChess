@@ -25,6 +25,7 @@ def main():
 
     # Set up the pieces on the board based on FEN string
     fen = STARTING_FEN
+    #fen = TEST_FEN
     game.load_position_from_fen(board, fen)
 
     # setup thread for 1 sec clock count
@@ -32,6 +33,7 @@ def main():
 
     start_btn_press = False
     stop_btn_press = False
+
     game_running = False
     ai_finding_move = False
     pg_quit = False
@@ -40,6 +42,13 @@ def main():
 
         # Menu / Pause loop
         while not game_running and not pg_quit:
+
+            gui.draw(window, board, game) 
+            if gui.start_button.text == "Start":
+                gui.draw_text(window, "Press Start", 10*SQUARE_SIZE, 500, 35)
+                gui.draw_text(window, "    to play", 10*SQUARE_SIZE, 540, 35)
+            elif gui.start_button.text == "Resume":
+                gui.draw_text(window, "Game paused", 10*SQUARE_SIZE, 500, 35)
 
             for event in pg.event.get():
                 if event.type == pg.QUIT:
@@ -81,32 +90,35 @@ def main():
                 game_running = True
                 stop_btn_press = False 
                 start_btn_press = False
-                    
+               
             if game.checkmate:
                 if game.turn == "white":
                     checked_square = board.white_king_square
                 else:
                     checked_square = board.black_king_square
                 gui.draw(window, board, game, game.selected_square, checked_square)
-                gui.draw_text(window, "Checkmate", 10*SQUARE_SIZE, TOP_PADDING)
+                gui.draw_text(window, "Checkmate", 10*SQUARE_SIZE, 2*TOP_PADDING)
             elif game.stalemate:
-                gui.draw(window, board, game)
-                gui.draw_text(window, "Stalemate", 10*SQUARE_SIZE, TOP_PADDING)
+                gui.draw_text(window, "Stalemate", 10*SQUARE_SIZE, 2*TOP_PADDING)
             elif game.white_clock <= 0 or game.black_clock <= 0:
                     if game.white_clock <= 0:
-                        gui.draw_text(window, "White lost on time", 10*SQUARE_SIZE, TOP_PADDING, 25)
+                        gui.draw_text(window, "White lost on time", 10*SQUARE_SIZE, 2*TOP_PADDING, 25)
                     else:
-                        gui.draw_text(window, "Black lost on time", 10*SQUARE_SIZE, TOP_PADDING, 25)
-            else:
-                gui.draw(window, board, game)
-
+                        gui.draw_text(window, "Black lost on time", 10*SQUARE_SIZE, 2*TOP_PADDING, 25)
+            elif game.repetition:
+                gui.draw_text(window, "Draw by repetition", 10*SQUARE_SIZE, 2*TOP_PADDING, 25)
+            
+            #gui.board.draw_attacked_squares(window, game.attacked_squares_by_white)
             pg.display.flip()
-            clock.tick(10)
+            clock.tick(FPS)
 
 
 
         # Main gameloop (started)
         while game_running:
+            
+            if game.game_ended or game.repetition:
+                game_running = False
 
             if game.selected_square is None:
                 gui.draw(window, board, game)
@@ -139,6 +151,7 @@ def main():
                     game.execute_move(board, ai_move[0], ai_move[1])
                     game.clock_increment()
                     game.update_gamestate(board)
+                    game.evaluate_board(board)
                     gui.draw(window, board, game)
                     if game.turn == "white":
                         game.white_move_clock = 0
@@ -245,11 +258,11 @@ def main():
                 else:
                     checked_square = board.black_king_square
                 gui.draw(window, board, game, game.selected_square, checked_square)
-                gui.draw_text(window, "Check", 10*SQUARE_SIZE, TOP_PADDING)
+                gui.draw_text(window, "    Check", 10*SQUARE_SIZE, 2*TOP_PADDING)
                 
             if not game_running and not stop_btn_press and not pg_quit:
                 game.game_ended = True
-                if game.white_clock <= 0 or game.black_clock <= 0:
+                if game.white_clock <= 0 or game.black_clock <= 0 or game.repetition:
                     break
                 elif game.king_in_check(board):
                     game.checkmate = True
@@ -260,7 +273,7 @@ def main():
                 else:
                     game.stalemate = True
                     
-
+            #gui.board.draw_attacked_squares(window, game.attacked_squares_by_white)
             pg.display.flip()
             clock.tick(FPS)
 

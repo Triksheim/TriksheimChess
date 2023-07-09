@@ -1,6 +1,6 @@
 from pieces import *
 import random
-from copy import deepcopy
+from copy import deepcopy, copy
 import timeit
 import time as t
 from multiprocessing import Pool, Manager, cpu_count
@@ -20,8 +20,13 @@ def generate_ai_move(ai, game, board, color, algo, depth):
     return selected_square, new_square, eval, time
 
 def handle_ai_move(ai, game, board, ai_color, algo, depth, times, depth_step=1, min_time=3):
-    if times[-1] < min_time and len(times) > 1:
+    if game.piece_count < 16:
         depth += depth_step
+    if game.piece_count < 8:
+        depth += depth_step
+    if game.piece_count < 5:
+        depth += depth_step
+    
     selected_square, new_square, eval, time = generate_ai_move(ai, game, board, ai_color, algo, depth)
     times.append(time)
     if time < 0.5:
@@ -36,10 +41,7 @@ def handle_ai_move(ai, game, board, ai_color, algo, depth, times, depth_step=1, 
 
 def execute_ai_move(game, board, selected_square, new_square):
     game.execute_move(board, selected_square, new_square)
-    game.update_attacked_squares(board)
-    game.swap_turn()
-    game.update_attacked_squares(board)
-    game.evaluate_board(board)
+    game.update_gamestate(board)
 
 
 
@@ -62,54 +64,30 @@ class ChessAI:
 
         if algorithm == "random":
             return self.random_move(game, board, ai_color)
-        
+           
         elif algorithm == "minimax":
             squares_to_check = self.get_prioritised_moves(game, board, ai_color, opponent)
             core_count = (cpu_count() - 1)
-            with Manager() as manager:
-                best_move = manager.dict()
-                best_move['value'] = float('-inf')
-                best_move['move'] = None
-                pool = Pool(core_count)  
-                args_list = []  
-                for square in squares_to_check:
-                    valid_moves = game.get_valid_moves(board, square, ai_color)
-                    if valid_moves:
-                        for move in valid_moves:
-                            args_list.append((self, game, board, ai_color, opponent, depth, float("-inf"), float("inf"), True, (square, move), [], True))
-                start_time = t.time()
-                for i, result in enumerate(pool.imap_unordered(multiprocess_minimax, args_list)):
-                    if result[1] > best_move['value']:
-                        best_move['value'] = result[1]
-                        best_move['move'] = result[0]
-                        best_move['path'] = result[2]
-                        
-                    if t.time() - start_time > 30:  # max move generation timelimit
-                        print('Time limit exceeded')
-                        break
+            pool = Pool(core_count)  
+            args_list = []  
+            for square in squares_to_check:
+                valid_moves = game.get_valid_moves(board, square, ai_color)
+                if valid_moves:
+                    #print(square , valid_moves)
+                    for move in valid_moves:
+                        args_list.append((self, game, board, ai_color, opponent, depth, float("-inf"), float("inf"), True, (square, move), [], True))
+            if args_list:
+                results = pool.map(multiprocess_minimax, args_list)
                 pool.close()
-                pool.terminate()
                 pool.join()
-                #print(best_move['move'], best_move['value'])
-                #print(best_move['path'])
-                return (best_move['move'], best_move['value'])
-            
-        # elif algorithm == "minimax":
-        #     squares_to_check = self.get_prioritised_moves(game, board, ai_color, opponent)
-        #     core_count = (cpu_count() - 1)
-        #     pool = Pool(core_count)  
-        #     args_list = []  
-        #     for square in squares_to_check:
-        #         valid_moves = game.get_valid_moves(board, square, ai_color)
-        #         if valid_moves:
-        #             for move in valid_moves:
-        #                 args_list.append((self, game, board, ai_color, opponent, depth, float("-inf"), float("inf"), True, (square, move), [], True))
-        #     results = pool.map(multiprocess_minimax, args_list)
-        #     pool.close()
-        #     pool.join()
-        #     best_move = max(results, key=lambda x: x[1])
-        #     print(best_move)
-        #     return best_move
+                if results:
+                    best_move = max(results, key=lambda x: x[1])
+                #print(best_move)
+                #print(best_move[0], best_move[1])
+                return best_move
+            else:
+                return [(None, None), None, None]   # No possible moves
+           
 
 
         
@@ -121,7 +99,6 @@ class ChessAI:
         fourth_prio = []
 
         ally_pieces = board.get_squares_with_piece(for_color)
-
         opponent_pieces = board.get_squares_with_piece(opponent)
         opponent_dict = {}
         for square, piece in opponent_pieces:
@@ -237,7 +214,7 @@ class ChessAI:
         original_beta = beta
 
         board_state = (hash(tuple(board.int_board)), game.turn)
-
+       
         if board_state in self.transposition_table and self.transposition_table[board_state][1] >= depth:
             bound_type = self.transposition_table[board_state][3]  # Get the bound type
             if bound_type == "LOWER" and self.transposition_table[board_state][2] > alpha:
@@ -251,7 +228,11 @@ class ChessAI:
 
 
         if depth == 0:
-            evaluation = self.evaluate(game, board, ai_color)
+            game.evaluate_board(board)
+            if game.repetition:
+                evaluation = 0
+            else:
+                evaluation = self.evaluate(game, board, ai_color)
             return best_move, evaluation, move_path
 
 
@@ -263,12 +244,10 @@ class ChessAI:
                 temp_game = deepcopy(game)
                 temp_board = deepcopy(board)
                 temp_game.execute_move(temp_board, square, move)
-                temp_game.update_attacked_squares(temp_board)
-                temp_game.swap_turn()
-                temp_game.update_attacked_squares(temp_board)
-                temp_game.evaluate_board(temp_board)
-            
-                _, evaluation, path = self.minimax(temp_game, temp_board, ai_color, opponent, depth-1, alpha, beta, maximize=False, move_path=[], initial_call=False)
+                temp_game.update_gamestate(temp_board)
+                
+                _, evaluation, path = self.minimax(temp_game, temp_board, ai_color, opponent, depth-1, alpha, beta, maximize=False, move_path=[], initial_call=False)              
+                
                 if evaluation > max_eval:
                     max_eval = evaluation
                     best_move = (square, move)
@@ -288,20 +267,17 @@ class ChessAI:
                     if beta <= alpha:
                         break # Beta cut-off
                     else:  
-                        valid_moves = game.get_valid_moves(board, square, ai_color)
+                        valid_moves = game.get_valid_moves(board, square)
 
                         if valid_moves:
                             for move in valid_moves:
                                 temp_game = deepcopy(game)
                                 temp_board = deepcopy(board)
                                 temp_game.execute_move(temp_board, square, move)
-                                temp_game.update_attacked_squares(temp_board)
-                                temp_game.swap_turn()
-                                temp_game.update_attacked_squares(temp_board)
-                                temp_game.evaluate_board(temp_board)
-
+                                temp_game.update_gamestate(temp_board)
                                 
                                 _, evaluation, path = self.minimax(temp_game, temp_board, ai_color, opponent, depth-1, alpha, beta, maximize=False, move_path=[], initial_call=False)
+                                
                                 if evaluation > max_eval:
                                     max_eval = evaluation
                                     best_move = (square, move)
@@ -336,19 +312,17 @@ class ChessAI:
                 if beta <= alpha:
                     break # cut-off
                 else:
-                    valid_moves = game.get_valid_moves(board, square, opponent)
+                    valid_moves = game.get_valid_moves(board, square)
 
                     if valid_moves:
                         for move in valid_moves:
                             temp_game = deepcopy(game)
                             temp_board = deepcopy(board)
                             temp_game.execute_move(temp_board, square, move)
-                            temp_game.update_attacked_squares(temp_board)
-                            temp_game.swap_turn()
-                            temp_game.update_attacked_squares(temp_board)
-                            temp_game.evaluate_board(temp_board)
+                            temp_game.update_gamestate(temp_board)
                             
-                            _, evaluation, path = self.minimax(temp_game, temp_board, ai_color, opponent, depth-1, alpha, beta, maximize=True, move_path=[], initial_call=False)
+                            _, evaluation, path = self.minimax(temp_game, temp_board, ai_color, opponent, depth-1, alpha, beta, maximize=True, move_path=[], initial_call=False)                        
+
                             if evaluation < min_eval:
                                 min_eval = evaluation
                                 best_move = (square, move)
