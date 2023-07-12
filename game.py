@@ -28,14 +28,16 @@ class ChessGame():
         self.black_king_is_pinned = False
         self.white_queen_is_pinned = False
         self.black_queen_is_pinned = False
-        self.white_rook_has_moved = (False, False)  # Queenside and Kingside
-        self.black_rook_has_moved = (False, False)
         self.white_eval = 0
         self.black_eval = 0
+        self.white_piece_value = 0
+        self.black_piece_value = 0
         self.attacked_squares_by_white = []
         self.attacked_squares_by_black = []
         self.black_move_times = [0]
         self.white_move_times = [0]
+        self.move_notation_log = []
+
         
     def clock_tick(self):
         t.sleep(1)
@@ -103,17 +105,59 @@ class ChessGame():
         self.update_attacked_squares(board, "black")
         self.evaluate_board(board)
 
+    def eval_piece_count_value(self, board):
+        white_piece_value = 0
+        white_pieces = board.get_pieces_for_color("white")
+        for piece in white_pieces:
+            white_piece_value += piece.value
+        black_piece_value = 0
+        black_pieces = board.get_pieces_for_color("black")
+        for piece in black_pieces:
+            black_piece_value += piece.value
 
-    def evaluate_board(self, board):
-        # board_state = board.board_state_log[-1]
-        # if board.board_state_log.count(board_state) >= 3:
-        #     # repetition
-        #     #self.white_eval = 0
-        #     #self.black_eval = 0
-        #     #self.stalemate = True
-        #     #self.game_ended = True
-        #     self.repetition = True
-             
+        self.white_piece_value = white_piece_value // 100
+        self.black_piece_value = black_piece_value // 100
+        
+
+    def get_algebraic_notation(self, board):
+        # Adds the chess notation for last move to log
+        piece, original_square, new_square, is_capture = board.last_move
+        notation = ""
+        match piece.name:
+            case "Rook":
+                notation += "R"
+            case "Knight":
+                notation += "N"
+            case "Bishop":
+                notation += "B"
+            case "Queen":
+                notation += "Q"
+            case "King":
+                notation += "K"
+
+        if is_capture:
+            if piece.name == "Pawn":
+                _, from_col = self.square_to_row_col(original_square)
+                notation += BOARD_FILES[from_col]
+            notation += "x"
+
+        row, col = self.square_to_row_col(new_square)
+        file = BOARD_FILES[col]
+        rank = str(BOARD_RANKS[row])
+        notation += file + rank
+        
+        if piece.name == "King" and (original_square == 4 or original_square == 60):
+            if new_square in (6,62):
+                notation = "O-O"
+            elif new_square in (2,58):
+                notation = "O-O-O"
+
+        if self.king_in_check(board):
+            notation += "+"
+
+        self.move_notation_log.append(notation)
+
+    def evaluate_board(self, board):    
         white_eval, white_count = self.evaluate_color(board, "white")
         black_eval, black_count = self.evaluate_color(board, "black")
         self.white_eval = white_eval
@@ -121,10 +165,8 @@ class ChessGame():
         self.piece_count = white_count + black_count
         if self.piece_count < 10:
             if self.white_eval > self.black_eval + 500:
-                
                 self.king_chase(board, "white")
             elif self.black_eval > self.white_eval + 500:
-                
                 self.king_chase(board, "black")
 
     def square_to_row_col(self, square):
@@ -144,7 +186,7 @@ class ChessGame():
                 self.white_eval += 200
             elif b_row == 7 or b_col == 7:
                 self.white_eval += 300
-        
+
         else:
             self.black_eval -= distance * 200
             if w_row == 5:
@@ -167,8 +209,6 @@ class ChessGame():
     def evaluate_color(self, board, color):
         evaluation = 0
         
-
-
         if color == "white":
             evaluation += (len(self.attacked_squares_by_white) * 2) # pts per attacked square
             if board.black_king_square in self.attacked_squares_by_white:
@@ -279,14 +319,11 @@ class ChessGame():
         self.update_attacked_squares(board)
         self.swap_turn()
         self.update_attacked_squares(board)
-        #self.evaluate_board(board)
         board_state = board.board_state_log[-1]
         if board.board_state_log.count(board_state) >= 3:
             self.repetition = True
             
         
-            
-
     def update_attacked_squares(self, board, color=None):
         if not color:
             color = self.turn
@@ -312,8 +349,6 @@ class ChessGame():
             self.attacked_squares_by_white = attacked_squares
 
         
-
-
     def _get_attacked_squares(self, board, piece, square):
         attacked_squares = []
         if piece.name == "Pawn":
@@ -609,6 +644,6 @@ class ChessGame():
 
 
     def eligible_to_en_passant(self, board, neighbour_piece):
-        last_piece, last_move_original_square, last_move_to_square = board.last_move
+        last_piece, last_move_original_square, last_move_to_square, is_capture = board.last_move
         return isinstance(last_piece, Pawn) and abs(last_move_to_square - last_move_original_square) == 16 and (last_piece == neighbour_piece)
 

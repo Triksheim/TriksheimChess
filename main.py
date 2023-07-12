@@ -20,7 +20,7 @@ def main():
     window = pg.display.set_mode((WIDTH, HEIGHT))   # Pygame display window
     clock = pg.time.Clock()
     board = ChessBoard()    # Board data
-    game = ChessGame(white_clock=900, black_clock=900, increment=10)    # Game logic and game status
+    game = ChessGame(white_clock=900, black_clock=900, increment=0)    # Game logic and game status
     gui = GUI()  # Graphics and IO handler
 
     # Set up the pieces on the board based on FEN string
@@ -43,12 +43,17 @@ def main():
         # Menu / Pause loop
         while not game_running and not pg_quit:
 
+            # Reset game
+            if gui.reset_button.active:
+                board = ChessBoard()    
+                game = ChessGame(white_clock=900, black_clock=900, increment=0) 
+                gui = GUI()
+                game.load_position_from_fen(board, fen)
+                ai_finding_move = False
+
             gui.draw(window, board, game) 
-            if gui.start_button.text == "Start":
-                gui.draw_text(window, "Press Start", 10*SQUARE_SIZE, 500, 35)
-                gui.draw_text(window, "    to play", 10*SQUARE_SIZE, 540, 35)
-            elif gui.start_button.text == "Resume":
-                gui.draw_text(window, "Game paused", 10*SQUARE_SIZE, 500, 35)
+            if gui.start_button.text == " Resume":
+                gui.draw_text(window, "Game paused", 10*SQUARE_SIZE-25, 2*TOP_PADDING-10, 35)
 
             for event in pg.event.get():
                 if event.type == pg.QUIT:
@@ -59,13 +64,13 @@ def main():
                     if event.pos[0] > (COLS*SQUARE_SIZE)+(2*BOARD_FRAME_WIDTH):
                         start_btn_press = gui.mouse_click(event)
                             
-                        
+            # Start game       
             if start_btn_press and not game.game_ended:
             
                 if gui.black_settings.radio_group_player[1].active:     # Black Player is CPU
                     for btn in gui.black_settings.radio_group_diff:
                         if btn.active:
-                            if btn.text == "Easy":
+                            if  btn.text == "   Easy":
                                 ai_black = ChessAI(EASY_MODE["depth"], EASY_MODE["algo"], EASY_MODE["depth_change"])
                             elif btn.text == "Medium":
                                 ai_black = ChessAI(MED_MODE["depth"], MED_MODE["algo"], MED_MODE["depth_change"])
@@ -77,7 +82,7 @@ def main():
                 if gui.white_settings.radio_group_player[1].active:     # White Player is CPU 
                      for btn in gui.white_settings.radio_group_diff:
                         if btn.active:
-                            if btn.text == "Easy":
+                            if btn.text == "   Easy":
                                 ai_white = ChessAI(EASY_MODE["depth"], EASY_MODE["algo"], EASY_MODE["depth_change"], "white")
                             elif btn.text == "Medium":
                                 ai_white = ChessAI(MED_MODE["depth"], MED_MODE["algo"], MED_MODE["depth_change"], "white")
@@ -91,15 +96,18 @@ def main():
                 stop_btn_press = False 
                 start_btn_press = False
                
+
+            # Game ended status
             if game.checkmate:
+                game.move_notation_log[-1] = game.move_notation_log[-1].replace("+", "#")
                 if game.turn == "white":
                     checked_square = board.white_king_square
                 else:
                     checked_square = board.black_king_square
                 gui.draw(window, board, game, game.selected_square, checked_square)
-                gui.draw_text(window, "Checkmate", 10*SQUARE_SIZE, 2*TOP_PADDING)
+                gui.draw_text(window, "Checkmate", 10*SQUARE_SIZE, 2*TOP_PADDING-10)
             elif game.stalemate:
-                gui.draw_text(window, "Stalemate", 10*SQUARE_SIZE, 2*TOP_PADDING)
+                gui.draw_text(window, "Stalemate", 10*SQUARE_SIZE, 2*TOP_PADDING-10)
             elif game.white_clock <= 0 or game.black_clock <= 0:
                     if game.white_clock <= 0:
                         gui.draw_text(window, "White lost on time", 10*SQUARE_SIZE, 2*TOP_PADDING, 25)
@@ -108,7 +116,10 @@ def main():
             elif game.repetition:
                 gui.draw_text(window, "Draw by repetition", 10*SQUARE_SIZE, 2*TOP_PADDING, 25)
             
-            #gui.board.draw_attacked_squares(window, game.attacked_squares_by_white)
+            if game.game_ended:
+                gui.start_button.disable()
+                gui.reset_button.enable()
+
             pg.display.flip()
             clock.tick(FPS)
 
@@ -152,6 +163,7 @@ def main():
                     game.clock_increment()
                     game.update_gamestate(board)
                     game.evaluate_board(board)
+                    game.get_algebraic_notation(board)
                     gui.draw(window, board, game)
                     if game.turn == "white":
                         game.white_move_clock = 0
@@ -162,7 +174,7 @@ def main():
                     game_running = False
 
 
-            # Check if player can move
+            # Check if player can move  
             if not ai_finding_move:
                 if game.no_valid_moves(board):
                     game_running = False
@@ -202,6 +214,7 @@ def main():
                             game.execute_move(board, None, new_square)
                             game.clock_increment()
                             game.update_attacked_squares(board)
+                            
                             end_time = timeit.default_timer()
                             try:
                                 time = end_time - start_time_player
@@ -219,10 +232,12 @@ def main():
 
                             if not ai_black and not ai_white:
                                 start_time_player = timeit.default_timer()
-                        game.selected_square = None
-                        game.update_attacked_squares(board)
-                        game.evaluate_board(board)
+                            game.update_attacked_squares(board)
+                            game.evaluate_board(board)
+                            game.get_algebraic_notation(board)
 
+                        game.selected_square = None
+                       
                         if game.king_in_check(board):
                                 if game.turn == "white":
                                     checked_square = board.white_king_square
@@ -258,7 +273,7 @@ def main():
                 else:
                     checked_square = board.black_king_square
                 gui.draw(window, board, game, game.selected_square, checked_square)
-                gui.draw_text(window, "    Check", 10*SQUARE_SIZE, 2*TOP_PADDING)
+                gui.draw_text(window, "    Check", 10*SQUARE_SIZE, 2*TOP_PADDING-10)
                 
             if not game_running and not stop_btn_press and not pg_quit:
                 game.game_ended = True
@@ -273,7 +288,6 @@ def main():
                 else:
                     game.stalemate = True
                     
-            #gui.board.draw_attacked_squares(window, game.attacked_squares_by_white)
             pg.display.flip()
             clock.tick(FPS)
 

@@ -9,9 +9,10 @@ class ChessBoard:
         self.int_board = [None for _ in range(64)]
         self.white_king_square = 4
         self.black_king_square = 60
-        self.last_move = (None, None, None) # tuple with (Piece, original_sqaure, new_square)
+        self.last_move = (None, None, None, False) # tuple with (Piece, original_sqaure, new_square)
         self.move_log = []
-        self.board_state_log = [None]
+        self.capture_log = []
+        self.board_state_log = [None]    # New square, is capture
         
         
     def get(self):
@@ -31,6 +32,14 @@ class ChessBoard:
             if piece and piece.color == color:
                 squares.add(square)
         return squares
+
+    def get_pieces_for_color(self, color):
+        pieces = []
+        for _, piece in enumerate(self.board):
+            if piece:
+                if piece.color == color:
+                    pieces.append(piece)
+        return pieces
 
 
     def add_piece(self, piece, square):
@@ -54,7 +63,9 @@ class ChessBoard:
 
     def move_piece(self, original_square, new_square):
         """ Move a piece to a new square on the board """
-        self.last_move = (self.board[original_square], original_square, new_square)
+        is_capture_move = self.contains_piece(new_square)
+        self.last_move = (self.get_piece(original_square), original_square, new_square, is_capture_move)
+        
         self.board[new_square] = self.board[original_square]
 
         self.int_board[new_square] = self.board[original_square].number
@@ -63,6 +74,7 @@ class ChessBoard:
         self.board[new_square].not_moved = False
 
         self.move_log.append(self.last_move)
+
         self.board_state_log.append(hash(tuple(self.int_board)))
         
 

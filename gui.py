@@ -8,8 +8,15 @@ class GUI:
         self.board = BoardGUI()
         self.white_settings = PlayerSettings("white")
         self.black_settings = PlayerSettings("black")
-        self.start_button = Button(text="Start", frame_color=DARK_GREEN_COLOR, active_frame_color=LIGHT_GREEN_COLOR, color=GRAY_COLOR,width=150, height=50, position=(1025, 750), font_size=30)
+        self.move_log = MoveLog()
+        self.start_button = Button(text="   Play", frame_color=DARK_GREEN_COLOR, active_frame_color=LIGHT_GRAY_COLOR, color=GRAY_COLOR,width=200, height=75, position=(1000, 450), font_size=45)
+        self.reset_button = Button(text="   Reset", frame_color=LIGHT_GRAY_COLOR, active_frame_color=LIGHT_GREEN_COLOR, color=GRAY_COLOR,width=150, height=50, position=(2000, 2000), font_size=30)
         self.buttons = self.list_buttons()
+        self.white_player_capture = PlayerCaptureStats("white")
+        self.black_player_capture = PlayerCaptureStats("black")
+        self.font35 = pg.font.Font('freesansbold.ttf', 35)
+        self.font25 = pg.font.Font('freesansbold.ttf', 25)
+        
 
     def list_buttons(self):
         buttons = []
@@ -22,34 +29,50 @@ class GUI:
         for btn in self.black_settings.radio_group_diff:
             buttons.append(btn)
         buttons.append(self.start_button)
+        buttons.append(self.reset_button)
         return buttons
 
     def mouse_click(self, event):
         x = event.pos[0]
         y = event.pos[1]  
 
-        # if y > self.black_settings.y[0] and y < self.white_settings.y[0]:
-        #     self.black_settings.mouse_click(event)
-        # elif y > self.white_settings.y[0]:
-        #     self.white_settings.mouse_click(event)
-
         if y >= self.black_settings.y[0] and y <= (self.black_settings.y[0] + self.black_settings.height):
             self.black_settings.mouse_click(event)
         elif y > self.white_settings.y[0] and y <= (self.white_settings.y[0] + self.white_settings.height):
             self.white_settings.mouse_click(event)
 
+        # Start / Pause button press
         elif x > self.start_button.x and x < (self.start_button.x + self.start_button.width)  and \
             y > self.start_button.y and y < (self.start_button.y + self.start_button.height):
+            if self.start_button.text == "   Play":
+                self.start_button.x = 950
+                self.start_button.y = 750
+                self.start_button.width = 150
+                self.start_button.height = 50
+                self.start_button.frame_color = LIGHT_GRAY_COLOR
+                self.start_button.font = pg.font.Font('freesansbold.ttf', 30)
+                self.reset_button.x = 1100
+                self.reset_button.y = 750
+                self.reset_button.disable()
             return self.start_pressed()
+
+        elif x > self.reset_button.x and x < (self.reset_button.x + self.reset_button.width)  and \
+            y > self.reset_button.y and y < (self.reset_button.y + self.reset_button.height):
+            self.reset_pressed()
 
     def start_pressed(self):
         if not self.start_button.active:
             self.start_button.activate()
-            self.start_button.text = "Pause"
+            self.start_button.text = "  Pause"
+            self.reset_button.disable()
         else:
             self.start_button.deactivate()
-            self.start_button.text = "Resume"
+            self.start_button.text = " Resume"
+            self.reset_button.enable()
         return True
+
+    def reset_pressed(self):
+        self.reset_button.activate()
 
     def disable_settings(self):
         self.black_settings.disable()
@@ -63,34 +86,136 @@ class GUI:
         self.board.draw(window, board, selected_square, checked_square)
         self.white_settings.draw(window)
         self.black_settings.draw(window)
+        self.move_log.draw(window, game)
         self.start_button.draw(window)
+        self.reset_button.draw(window)
         self.draw_stats(window, game)
 
-    def draw_stats(self, window, game):
-        #draw_eval(window, font, game)  
+        game.eval_piece_count_value(board)
+        self.white_player_capture.draw(window, game, board)
+        self.black_player_capture.draw(window, game, board)
+
+    def draw_stats(self, window, game):  
         self.draw_move_time(window, game, "black", 0)
         self.draw_move_time(window, game, "white", 9)
         self.draw_clock(window, game)
 
-    def draw_text(self, window, text, x, y, font_size=35, color=WHITE_COLOR):
-        font = pg.font.Font('freesansbold.ttf', font_size)
+    def draw_text(self, window, text, x, y, font_size=35,  color=WHITE_COLOR, font=None):
+        if not font:
+            font = pg.font.Font('freesansbold.ttf', font_size)
         render_text = font.render(text, 1, color)
         window.blit(render_text, (x, y, SQUARE_SIZE, SQUARE_SIZE))
 
-    def draw_eval(self, window, game):
-        self.draw_text(window, f'White eval: {game.white_eval}', SQUARE_SIZE/2, BOARD_FRAME_WIDTH+10 + 9*SQUARE_SIZE)
-        self.draw_text(window, f'Black eval: {game.black_eval}', SQUARE_SIZE/2, (BOARD_FRAME_WIDTH/2)-10 + 0*SQUARE_SIZE)
+    def draw_text_move_log(self, window, text, x, y, font_size=35, color=WHITE_COLOR):
+        font = self.font20
+        render_text = font.render(text, 1, color)
+        window.blit(render_text, (x, y, SQUARE_SIZE, SQUARE_SIZE))
 
     def draw_move_time(self, window, game, color, position_multiplier):
         font_size = 25
         if color == "white":
-            self.draw_text(window, f'{utility.format_time(game.white_move_clock)}', (COLS-1)*SQUARE_SIZE-20, BOARD_FRAME_WIDTH+15 + position_multiplier*SQUARE_SIZE, font_size)
+            self.draw_text(window, f'{utility.format_time(game.white_move_clock)}', (COLS-1)*SQUARE_SIZE-20, BOARD_FRAME_WIDTH+15 + position_multiplier*SQUARE_SIZE, font_size, WHITE_COLOR, self.font25)
         else: 
-            self.draw_text(window, f'{utility.format_time(game.black_move_clock)}', (COLS-1)*SQUARE_SIZE-20, (BOARD_FRAME_WIDTH/2)-5 + position_multiplier*SQUARE_SIZE, font_size)
+            self.draw_text(window, f'{utility.format_time(game.black_move_clock)}', (COLS-1)*SQUARE_SIZE-20, (BOARD_FRAME_WIDTH/2)-5 + position_multiplier*SQUARE_SIZE, font_size, WHITE_COLOR, self.font25)
 
     def draw_clock(self, window, game):
-        self.draw_text(window, f'{utility.format_time(game.white_clock)}', COLS*SQUARE_SIZE, BOARD_FRAME_WIDTH+10 + 9*SQUARE_SIZE)
-        self.draw_text(window, f'{utility.format_time(game.black_clock)}', COLS*SQUARE_SIZE, (BOARD_FRAME_WIDTH/2)-10 + 0*SQUARE_SIZE)
+        self.draw_text(window, f'{utility.format_time(game.white_clock)}', COLS*SQUARE_SIZE, BOARD_FRAME_WIDTH+10 + 9*SQUARE_SIZE, 35, WHITE_COLOR, self.font35)
+        self.draw_text(window, f'{utility.format_time(game.black_clock)}', COLS*SQUARE_SIZE, (BOARD_FRAME_WIDTH/2)-10 + 0*SQUARE_SIZE, 35, WHITE_COLOR, self.font35)
+
+
+class PlayerCaptureStats(GUI):
+    def __init__(self, color="white"):
+        self.color = color
+        self.piece_mini_images = utility.load_piece_images(width=50, height=50)
+        if self.color == "white":
+            self.x = LEFT_SIDE_PADDING 
+            self.y = 10*SQUARE_SIZE - SQUARE_SIZE/2
+        else:
+            self.x = LEFT_SIDE_PADDING
+            self.y = 0
+
+    def draw(self, window, game, board):
+        if self.color == "white":
+            opponent = "black"  
+        else:
+            opponent = "white"
+            
+        opponent_pieces = board.get_pieces_for_color(opponent)
+        piece_count_dict = {}
+        for piece in opponent_pieces:
+            if piece.name in piece_count_dict:
+                piece_count_dict[piece.name] += 1
+            else:
+                piece_count_dict[piece.name] = 1 
+
+        pieces_base_count = (("Pawn", 8), ("Knight", 2), ("Bishop", 2), ("Rook", 2), ("Queen", 1))
+        current_x = self.x
+        for name, count in pieces_base_count:
+            filename = f'{opponent}_{name.lower()}.png'
+            image = self.piece_mini_images[filename]
+            if name in piece_count_dict:
+                piece_count = piece_count_dict[name]
+            else:
+                piece_count = 0
+            for _ in range (count - piece_count):
+                window.blit(image, (current_x, self.y))
+                if name == "Pawn":
+                    current_x += 10
+                else:
+                    current_x += 20
+            if name == "Pawn":
+                current_x += 10
+                
+        if self.color == "white":
+            piece_advantage = game.white_piece_value - game.black_piece_value
+        else:
+            piece_advantage = game.black_piece_value - game.white_piece_value
+
+        if piece_advantage > 0:
+            self.draw_text(window, f'+{piece_advantage}', current_x +30, self.y+15, 25)
+        
+        
+
+
+class MoveLog(GUI):
+    def __init__(self, x=10*SQUARE_SIZE, y=(3*SQUARE_SIZE)-50, rect_color=GRAY_COLOR):
+        self.start_x = x
+        self.start_y = y
+        self.rect_color = rect_color
+        self.font20 = pg.font.Font('freesansbold.ttf', 20)
+
+    def draw(self,window, game):
+        x = self.start_x
+        y = self.start_y
+
+        pg.draw.rect(window, self.rect_color, (x-50, y-15,  300 , 475 ), 5) # log border outline
+
+        current_y = y
+        if len(game.move_notation_log) <= 30:
+            offset = 0
+            move_count = len(game.move_notation_log)
+        else:
+            move_count = 30
+            offset = len(game.move_notation_log) - move_count
+            if offset % 2 != 0:
+                move_count -= 1
+                offset += 1
+            
+        for i in range (move_count):
+            if i+offset == 0:
+                move_num = f'{(i+offset) + 1}.'
+                self.draw_text(window, move_num, x-20, current_y, 20, WHITE_COLOR, self.font20)
+                self.draw_text(window, game.move_notation_log[i+offset], x + 50, current_y, 20, WHITE_COLOR, self.font20)
+            elif (i+offset) % 2 != 0:
+                self.draw_text(window, game.move_notation_log[i+offset], x + 150, current_y, 20, WHITE_COLOR, self.font20)
+                current_y += 30
+                pg.draw.rect(window, self.rect_color, (x-25, current_y-5,  250 , 1 ))
+                
+            else:
+                move_num = f'{((i+offset)//2) + 1}.'
+                self.draw_text(window, move_num, x-20, current_y, 20, WHITE_COLOR, self.font20)
+                self.draw_text(window, game.move_notation_log[i+offset], x + 50, current_y, 20, WHITE_COLOR, self.font20)
+            
 
 
 class Button(GUI):
@@ -109,6 +234,7 @@ class Button(GUI):
         self.x = position[0]
         self.y = position[1]
         self.font_size = font_size
+        self.font = pg.font.Font('freesansbold.ttf', font_size)
 
     def activate(self):
         if self.enabled:
@@ -132,7 +258,7 @@ class Button(GUI):
     def draw(self, window):
         pg.draw.rect(window, self.current_frame_color, (self.x, self.y, self.width, self.height))
         pg.draw.rect(window, self.color, (self.x+5, self.y+5, self.width-10, self.height-10))
-        self.draw_text(window, self.text, self.x+10, self.y+15, self.font_size, self.text_color)   
+        self.draw_text(window, self.text, self.x+10, self.y+15, self.font_size, self.text_color, self.font)   
 
 class PlayerSettings(GUI):
     def __init__(self, color):
@@ -142,7 +268,7 @@ class PlayerSettings(GUI):
         self.color = color
         self.width = 310
         self.height = 115
-        button_labels = ["Player", "CPU", "Easy", "Medium", "Hard"]
+        button_labels = ["     Player", "       CPU", "   Easy", "Medium", "  Hard"]
         self.x = (950, 1100, 950, 1050 ,1150)
         width = (150, 150, 100, 100, 100)
         if color == "white":
@@ -150,7 +276,6 @@ class PlayerSettings(GUI):
             self.y = (840, 840, 895 ,895 ,895)
         else:
             self.frame_color = DARK_SQUARE_COLOR
-            #self.y = (715, 715 ,770, 770 ,770)
             begin_at = TOP_PADDING-BOARD_FRAME_WIDTH+5
             self.y = (begin_at, begin_at ,begin_at+55, begin_at+55 ,begin_at+55)
 
@@ -197,21 +322,22 @@ class PlayerSettings(GUI):
        
         for btn in self.radio_group_player:
             if x > btn.x and x < (btn.x + btn.width) and y > btn.y and y < (btn.y + btn.height):
-                if btn.text == "CPU":
+                if btn.text == "       CPU":
                     if not btn.active:
                         for button in self.radio_group_diff:
                             button.enable()
                         self.radio_group_diff[0].activate()
                         self.radio_group_diff[1].deactivate()
                         self.radio_group_diff[2].deactivate()
+                       
                 else:
                     for button in self.radio_group_diff:
                         button.disable()
+                    
                 for button in self.radio_group_player:
                     if button != btn:
                         button.deactivate()
-                btn.activate()
-                
+                btn.activate()    
 
         for btn in self.radio_group_diff:
             if x > btn.x and x < (btn.x + btn.width) and y > btn.y and y < (btn.y + btn.height):
@@ -233,6 +359,7 @@ class PlayerSettings(GUI):
 class BoardGUI:
     def __init__(self):
         self.piece_images = utility.load_piece_images(width=SQUARE_SIZE, height=SQUARE_SIZE)
+        self.font40 = pg.font.Font('freesansbold.ttf', 40)
 
 
     def draw(self, window, board, selected_square=None, checked_square=None):
@@ -261,7 +388,7 @@ class BoardGUI:
         self.draw_board_frame(window)
 
     def draw_board_frame(self, window):
-        font = pg.font.Font('freesansbold.ttf', 40)
+        font = self.font40
         frame_color = BOARD_FRAME_COLOR
         seperator_line_color = LIGHT_GRAY_COLOR
         char_color = WHITE_COLOR
@@ -282,8 +409,6 @@ class BoardGUI:
         pg.draw.rect(window, seperator_line_color, (COLS*SQUARE_SIZE + BOARD_FRAME_WIDTH, TOP_PADDING-5,   5, COLS*SQUARE_SIZE + 10) ) #right
 
 
-            
-
     def draw_pieces(self, window, board, selected_square):
         for square, piece in enumerate(board.get()):
             if piece is not None and square != selected_square:
@@ -303,10 +428,6 @@ class BoardGUI:
         image = self.piece_images[filename]
         window.blit(image, (x_cor-(SQUARE_SIZE/2), y_cor-(SQUARE_SIZE/2)))
         
-
-
-   
-
     def draw_last_move(self, window, board):
         if board.last_move[2] or board.last_move[2] == 0:
             old_square = board.last_move[1]
@@ -318,19 +439,16 @@ class BoardGUI:
             col = old_square % 8
             pg.draw.rect(window, LIGHT_GRAY_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
 
-
     def draw_checked_square(self, window, square):
             row =  square // 8
             col = square % 8
             pg.draw.rect(window, CHECK_COLOR, (col*SQUARE_SIZE + LEFT_SIDE_PADDING, (ROWS - row - 1)*SQUARE_SIZE + TOP_PADDING, SQUARE_SIZE, SQUARE_SIZE))
-
 
     def draw_valid_moves(self, window, moves):
         for move in moves:
             row = move // ROWS
             col = move % COLS
             pg.draw.circle(window, GRAY_COLOR, ((col*SQUARE_SIZE + (SQUARE_SIZE/2)) + LEFT_SIDE_PADDING, ((ROWS - row - 1)*SQUARE_SIZE + (SQUARE_SIZE/2)) + TOP_PADDING), 5)
-
 
     def draw_attacked_squares(self, window, attacked_squares):
         for square in attacked_squares:

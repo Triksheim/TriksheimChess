@@ -39,9 +39,6 @@ def handle_ai_move(ai, game, board, ai_color, algo, depth, times, depth_step=1, 
         game.ai_move = (selected_square, new_square)
         return
 
-def execute_ai_move(game, board, selected_square, new_square):
-    game.execute_move(board, selected_square, new_square)
-    game.update_gamestate(board)
 
 
 
@@ -73,7 +70,6 @@ class ChessAI:
             for square in squares_to_check:
                 valid_moves = game.get_valid_moves(board, square, ai_color)
                 if valid_moves:
-                    #print(square , valid_moves)
                     for move in valid_moves:
                         args_list.append((self, game, board, ai_color, opponent, depth, float("-inf"), float("inf"), True, (square, move), [], True))
             if args_list:
@@ -82,8 +78,6 @@ class ChessAI:
                 pool.join()
                 if results:
                     best_move = max(results, key=lambda x: x[1])
-                #print(best_move)
-                #print(best_move[0], best_move[1])
                 return best_move
             else:
                 return [(None, None), None, None]   # No possible moves
