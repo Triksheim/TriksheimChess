@@ -7,7 +7,7 @@ import time as t
 
 
 class ChessGame():
-    def __init__(self, white_clock=900, black_clock=900, increment=10):
+    def __init__(self, white_clock=900, black_clock=900, increment=0):
         self.turn = "white"
         self.white_clock = white_clock
         self.black_clock = black_clock
@@ -34,17 +34,16 @@ class ChessGame():
         self.black_piece_value = 0
         self.attacked_squares_by_white = []
         self.attacked_squares_by_black = []
-        self.black_move_times = [0]
-        self.white_move_times = [0]
         self.move_notation_log = []
 
         
     def clock_tick(self):
         t.sleep(1)
-        if self.turn == "white":
+        if self.turn == "white" and self.white_clock > 0:
             self.white_clock -= 1
             self.white_move_clock += 1
-        else:
+            
+        elif self.black_clock > 0:
             self.black_clock -= 1
             self.black_move_clock += 1
 
@@ -163,7 +162,7 @@ class ChessGame():
         self.white_eval = white_eval
         self.black_eval = black_eval
         self.piece_count = white_count + black_count
-        if self.piece_count < 10:
+        if self.piece_count <= 10:
             if self.white_eval > self.black_eval + 500:
                 self.king_chase(board, "white")
             elif self.black_eval > self.white_eval + 500:
@@ -178,30 +177,23 @@ class ChessGame():
         w_row, w_col = self.square_to_row_col(board.white_king_square)
         b_row, b_col = self.square_to_row_col(board.black_king_square)
         distance = abs(w_row - b_row) + abs(w_col - b_col)
+
         if color == "white":
-            self.white_eval -= distance * 200
+            self.white_eval += (8 - distance) * 50
             if b_row == 5 or b_col == 5:
                 self.white_eval += 100
-            if b_row == 6 or b_col == 6:
+            elif b_row == 6 or b_col == 6:
                 self.white_eval += 200
             elif b_row == 7 or b_col == 7:
                 self.white_eval += 300
 
         else:
-            self.black_eval -= distance * 200
-            if w_row == 5:
+            self.black_eval += (8 - distance) * 50
+            if w_row == 5 or w_col == 5:
                 self.black_eval += 100
-            if w_col == 5:
-                self.black_eval += 100
-
-            if w_row == 6:
+            elif w_row == 6 or w_col == 6:
                 self.black_eval += 200
-            if w_col == 6:
-                self.black_eval += 200
-
-            if w_row == 7:
-                self.black_eval += 300
-            if w_col == 7:
+            elif w_row == 7 or w_col == 7:
                 self.black_eval += 300
 
             
@@ -221,6 +213,7 @@ class ChessGame():
                 evaluation += 10
             if self.white_queen_is_pinned:
                 evaluation -= 10
+            
         else:
             evaluation += (len(self.attacked_squares_by_black) * 2)
             if board.white_king_square in self.attacked_squares_by_black:
@@ -319,6 +312,7 @@ class ChessGame():
         self.update_attacked_squares(board)
         self.swap_turn()
         self.update_attacked_squares(board)
+        self.evaluate_board(board)
         board_state = board.board_state_log[-1]
         if board.board_state_log.count(board_state) >= 3:
             self.repetition = True
@@ -423,7 +417,7 @@ class ChessGame():
                 temp_game = deepcopy(self)
                 temp_game.execute_move(temp_board, start_square, move)
                 temp_game.update_attacked_squares(temp_board)
-                if not temp_game.king_in_check(temp_board):
+                if not temp_game.king_in_check(temp_board, color):
                     valid_valid_moves.append(move)
             return valid_valid_moves if valid_valid_moves else None
             

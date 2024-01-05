@@ -160,9 +160,9 @@ class PlayerCaptureStats(GUI):
             for _ in range (count - piece_count):
                 window.blit(image, (current_x, self.y))
                 if name == "Pawn":
-                    current_x += 10
-                else:
                     current_x += 20
+                else:
+                    current_x += 30
             if name == "Pawn":
                 current_x += 10
                 
@@ -299,8 +299,9 @@ class PlayerSettings(GUI):
         self.enabled = True
         for btn in self.radio_group_player:
             btn.enable()
-        for btn in self.radio_group_diff:
-            btn.enable()
+        if self.radio_group_player[1].active:
+            for btn in self.radio_group_diff:
+                btn.enable()
 
 
     def apply_default_settings(self):
@@ -312,7 +313,7 @@ class PlayerSettings(GUI):
             self.radio_group_player[1].activate()
             for btn in self.radio_group_diff:
                 btn.enable()
-            self.radio_group_diff[1].activate()
+            self.radio_group_diff[2].activate()
 
     def mouse_click(self, event):
         if not self.enabled:
@@ -326,9 +327,9 @@ class PlayerSettings(GUI):
                     if not btn.active:
                         for button in self.radio_group_diff:
                             button.enable()
-                        self.radio_group_diff[0].activate()
+                        self.radio_group_diff[0].deactivate()
                         self.radio_group_diff[1].deactivate()
-                        self.radio_group_diff[2].deactivate()
+                        self.radio_group_diff[2].activate()
                        
                 else:
                     for button in self.radio_group_diff:

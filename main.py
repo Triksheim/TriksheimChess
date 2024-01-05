@@ -1,13 +1,11 @@
 if __name__ == "__main__":
     import pygame as pg
     import timeit
-    import time as t
     import threading
 
     from constants import *
     from board import ChessBoard
     from game import ChessGame
-    #from AI import ChessAI, handle_ai_move
     from AI_mp import ChessAI, handle_ai_move
     from gui import GUI
     
@@ -26,6 +24,7 @@ def main():
     # Set up the pieces on the board based on FEN string
     fen = STARTING_FEN
     #fen = TEST_FEN
+    #fen = TEST2_FEN
     game.load_position_from_fen(board, fen)
 
     # setup thread for 1 sec clock count
@@ -71,11 +70,11 @@ def main():
                     for btn in gui.black_settings.radio_group_diff:
                         if btn.active:
                             if  btn.text == "   Easy":
-                                ai_black = ChessAI(EASY_MODE["depth"], EASY_MODE["algo"], EASY_MODE["depth_change"])
+                                ai_black = ChessAI(EASY_MODE["depth"], EASY_MODE["depth_change"], "black")
                             elif btn.text == "Medium":
-                                ai_black = ChessAI(MED_MODE["depth"], MED_MODE["algo"], MED_MODE["depth_change"])
+                                ai_black = ChessAI(MED_MODE["depth"], MED_MODE["depth_change"], "black")
                             else:
-                                ai_black = ChessAI(HARD_MODE["depth"], HARD_MODE["algo"], HARD_MODE["depth_change"])
+                                ai_black = ChessAI(HARD_MODE["depth"], HARD_MODE["depth_change"], "black")
                 else:
                     ai_black = False
 
@@ -83,11 +82,11 @@ def main():
                      for btn in gui.white_settings.radio_group_diff:
                         if btn.active:
                             if btn.text == "   Easy":
-                                ai_white = ChessAI(EASY_MODE["depth"], EASY_MODE["algo"], EASY_MODE["depth_change"], "white")
+                                ai_white = ChessAI(EASY_MODE["depth"], EASY_MODE["depth_change"], "white")
                             elif btn.text == "Medium":
-                                ai_white = ChessAI(MED_MODE["depth"], MED_MODE["algo"], MED_MODE["depth_change"], "white")
+                                ai_white = ChessAI(MED_MODE["depth"], MED_MODE["depth_change"], "white")
                             else:
-                                ai_white = ChessAI(HARD_MODE["depth"], HARD_MODE["algo"], HARD_MODE["depth_change"], "white")
+                                ai_white = ChessAI(HARD_MODE["depth"], HARD_MODE["depth_change"], "white")
                 else:
                     ai_white = False
 
@@ -145,13 +144,13 @@ def main():
             # AI move
             if ai_black and game.turn == ai_black.color and not ai_finding_move:
                 ai_finding_move = True
-                thread = threading.Thread(target=handle_ai_move, args=(ai_black, game, board, ai_black.color, ai_black.algo, ai_black.depth, game.black_move_times, ai_black.depth_step))
+                thread = threading.Thread(target=handle_ai_move, args=(ai_black, game, board))
                 thread.start()
 
             # AI2 move
             elif ai_white and game.turn == ai_white.color and not ai_finding_move:  
                 ai_finding_move = True
-                thread = threading.Thread(target=handle_ai_move, args=(ai_white, game, board, ai_white.color, ai_white.algo, ai_white.depth, game.white_move_times, ai_white.depth_step ))
+                thread = threading.Thread(target=handle_ai_move, args=(ai_white, game, board))
                 thread.start()
         
             # Check if AI move is complete:
@@ -214,28 +213,17 @@ def main():
                             game.execute_move(board, None, new_square)
                             game.clock_increment()
                             game.update_attacked_squares(board)
-                            
-                            end_time = timeit.default_timer()
-                            try:
-                                time = end_time - start_time_player
-                            except:
-                                time = 0 
-                            if game.turn == "white":
-                                game.white_move_times.append(time)
-                            else:
-                                game.black_move_times.append(time)
                             game.swap_turn()
+                            game.update_attacked_squares(board)
+                            game.evaluate_board(board)
+                            game.get_algebraic_notation(board)
                             if game.turn == "white":
                                 game.white_move_clock = 0
                             else:
                                 game.black_move_clock = 0
-
-                            if not ai_black and not ai_white:
-                                start_time_player = timeit.default_timer()
-                            game.update_attacked_squares(board)
-                            game.evaluate_board(board)
-                            game.get_algebraic_notation(board)
-
+                            # print(f'black {game.black_eval}')
+                            # print(f'white {game.white_eval}')
+                            # print("")
                         game.selected_square = None
                        
                         if game.king_in_check(board):

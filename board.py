@@ -9,10 +9,10 @@ class ChessBoard:
         self.int_board = [None for _ in range(64)]
         self.white_king_square = 4
         self.black_king_square = 60
-        self.last_move = (None, None, None, False) # tuple with (Piece, original_sqaure, new_square)
+        self.last_move = (None, None, None, False) # tuple with (Piece, original_sqaure, new_square, isCapture)
         self.move_log = []
         self.capture_log = []
-        self.board_state_log = [None]    # New square, is capture
+        self.board_state_log = [None]    
         
         
     def get(self):
@@ -51,6 +51,14 @@ class ChessBoard:
                 self.white_king_square = square
             else:
                 self.black_king_square = square
+        if isinstance(piece, Pawn):
+            if piece.color == "white":
+                if square < 8 or square > 15:
+                    piece.not_moved = False
+            else:
+                if  square < 48 or square > 55:
+                    piece.not_moved = False
+
 
     def contains_piece(self, square):
         if square is not None:
