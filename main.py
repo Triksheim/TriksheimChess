@@ -1,14 +1,14 @@
 if __name__ == "__main__":
     import pygame as pg
-    import timeit
     import threading
-
     from constants import *
     from board import ChessBoard
     from game import ChessGame
-    from AI_mp import ChessAI, handle_ai_move
+    from AI import ChessAI, handle_ai_move
     from gui import GUI
+    from test import AIGenerationTest, player_moves_1, excepted_ai_moves_1, player_moves_2, excepted_ai_moves_2, player_moves_3, excepted_ai_moves_3
     
+test_mode = False
 
 def main():
     FPS = 10
@@ -36,6 +36,12 @@ def main():
     game_running = False
     ai_finding_move = False
     pg_quit = False
+
+    ai_gen_tester = None
+    if test_mode:
+        #ai_gen_tester = AIGenerationTest(player_moves_1, excepted_ai_moves_1)
+        #ai_gen_tester = AIGenerationTest(player_moves_2, excepted_ai_moves_2)
+        ai_gen_tester = AIGenerationTest(player_moves_3, excepted_ai_moves_3)
 
     while not pg_quit:
 
@@ -70,11 +76,11 @@ def main():
                     for btn in gui.black_settings.radio_group_diff:
                         if btn.active:
                             if  btn.text == "   Easy":
-                                ai_black = ChessAI(EASY_MODE["depth"], EASY_MODE["depth_change"], "black")
+                                ai_black = ChessAI(EASY_MODE["depth"], EASY_MODE["depth_inc"], "black")
                             elif btn.text == "Medium":
-                                ai_black = ChessAI(MED_MODE["depth"], MED_MODE["depth_change"], "black")
+                                ai_black = ChessAI(MED_MODE["depth"], MED_MODE["depth_inc"], "black")
                             else:
-                                ai_black = ChessAI(HARD_MODE["depth"], HARD_MODE["depth_change"], "black")
+                                ai_black = ChessAI(HARD_MODE["depth"], HARD_MODE["depth_inc"], "black")
                 else:
                     ai_black = False
 
@@ -82,11 +88,11 @@ def main():
                      for btn in gui.white_settings.radio_group_diff:
                         if btn.active:
                             if btn.text == "   Easy":
-                                ai_white = ChessAI(EASY_MODE["depth"], EASY_MODE["depth_change"], "white")
+                                ai_white = ChessAI(EASY_MODE["depth"], EASY_MODE["depth_inc"], "white")
                             elif btn.text == "Medium":
-                                ai_white = ChessAI(MED_MODE["depth"], MED_MODE["depth_change"], "white")
+                                ai_white = ChessAI(MED_MODE["depth"], MED_MODE["depth_inc"], "white")
                             else:
-                                ai_white = ChessAI(HARD_MODE["depth"], HARD_MODE["depth_change"], "white")
+                                ai_white = ChessAI(HARD_MODE["depth"], HARD_MODE["depth_inc"], "white")
                 else:
                     ai_white = False
 
@@ -157,6 +163,14 @@ def main():
             if ai_finding_move and not thread.is_alive():
                 ai_finding_move = False
                 ai_move = game.ai_move
+
+                if ai_gen_tester:
+                    if not ai_gen_tester.is_expected_move(ai_move):
+                        print("Unexpected AI move")
+                        game_running = False
+                    else:
+                        ai_gen_tester.inc_count()
+
                 if ai_move:
                     game.execute_move(board, ai_move[0], ai_move[1])
                     game.clock_increment()
@@ -168,7 +182,7 @@ def main():
                         game.white_move_clock = 0
                     else:
                         game.black_move_clock = 0
-                    start_time_player = timeit.default_timer()
+                    #start_time_player = timeit.default_timer()
                 else:
                     game_running = False
 
@@ -183,6 +197,13 @@ def main():
                     pg_quit = True
                     game_running = False
 
+                if ai_gen_tester:
+                    fake_click = pg.event.Event(pg.MOUSEBUTTONDOWN, {
+                        "pos": (100, 150),
+                        "button": 1,
+                    })
+                    pg.event.post(fake_click)
+
                 if event.type == pg.MOUSEBUTTONDOWN:
                     if event.pos[0] > (COLS*SQUARE_SIZE)+(2*BOARD_FRAME_WIDTH):
                         stop_btn_press = gui.mouse_click(event)
@@ -193,11 +214,21 @@ def main():
                             
 
                 if not ai_finding_move:
-
                     # Player move, selecting piece
-                    if event.type == pg.MOUSEBUTTONDOWN and game.selected_square is None:
+                    if (event.type == pg.MOUSEBUTTONDOWN and game.selected_square is None) or (ai_gen_tester and game.selected_square is None):
+            
                         if game.selected_square is None:
-                            square = board.select_square_by_mouse_click(event)
+                            if ai_gen_tester:
+                                move = ai_gen_tester.get_manuel_move()
+                                if move is None:
+                                    print(f'GEN TEST AI THINK TIME: {ai_black.total_think_time:.2f}s')
+                                    pg_quit = True
+                                    game_running = False
+                                    break
+                                else:
+                                    square = move[0]
+                            else:
+                                square = board.select_square_by_mouse_click(event)
                             if board.contains_piece(square):
                                 if board.get_piece(square).color == game.turn:
                                     valid_moves = game.get_valid_moves(board, square)
@@ -207,8 +238,12 @@ def main():
                                         gui.board.draw_valid_moves(window, valid_moves)
                                     
                     # Player move, dropping selected piece
-                    elif event.type == pg.MOUSEBUTTONUP and game.selected_square is not None:
-                        new_square = board.select_square_by_mouse_click(event)
+                    elif (event.type == pg.MOUSEBUTTONUP and game.selected_square is not None) or (ai_gen_tester and game.selected_square is not None):
+                        if ai_gen_tester:     
+                            new_square = ai_gen_tester.get_manuel_move()[1]
+                        else:
+                            new_square = board.select_square_by_mouse_click(event)
+                        
                         if new_square in valid_moves:
                             game.execute_move(board, None, new_square)
                             game.clock_increment()
@@ -224,6 +259,7 @@ def main():
                             # print(f'black {game.black_eval}')
                             # print(f'white {game.white_eval}')
                             # print("")
+                            # print(game.selected_square, new_square)
                         game.selected_square = None
                        
                         if game.king_in_check(board):
@@ -241,7 +277,7 @@ def main():
             # Drag selected piece
             if game.selected_square is not None:
                 FPS = 60    # Increase FPS while dragging piece
-                if event.type == pg.MOUSEMOTION or event.type == pg.MOUSEBUTTONDOWN:
+                if (event.type == pg.MOUSEMOTION or event.type == pg.MOUSEBUTTONDOWN):
                     mouse_cords = (event.pos[0], event.pos[1])
                     if game.king_in_check(board):
                         if game.turn == "white":

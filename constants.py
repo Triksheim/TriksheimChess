@@ -32,6 +32,6 @@ TEST_FEN = "r1b1k2r/p2p1p1p/1p3p2/2p3q1/2B1P1N1/5PP1/P6P/n2Q1K1R"
 TEST2_FEN ="3r3r/p3kp1p/1p1p1p2/2p1q2P/P1B3P1/2Q3P1/7K/4R3"
 
 
-EASY_MODE = {"depth": 1, "depth_change": False}
-MED_MODE = {"depth": 3, "depth_change": False}
-HARD_MODE = {"depth": 3, "depth_change": True}
+EASY_MODE = {"depth": 1, "depth_inc": 0}
+MED_MODE = {"depth": 3, "depth_inc": 0}
+HARD_MODE = {"depth": 3, "depth_inc": 2}
