@@ -11,7 +11,7 @@ def load_piece_images(width, height):
         for j in range(2):
             color = 'white' if j == 0 else 'black'
             filename = f'{color}_{piece_names[i]}.png'
-            img = load_and_transform_image(f'image\{filename}', width, height)
+            img = load_and_transform_image(f'image/{filename}', width, height)
             piece_images[filename] = img
     return piece_images
 

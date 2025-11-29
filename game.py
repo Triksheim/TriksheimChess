@@ -1,9 +1,30 @@
 from constants import *
 from pieces import *
 from pieces_table import *
-from copy import deepcopy
 import time as t
+from dataclasses import dataclass
+from typing import Dict, Any
 
+
+@dataclass
+class SearchMoveState:
+    board_board: list
+    board_int_board: list
+    board_last_move: tuple
+    board_move_log_len: int
+    board_board_state_log_len: int
+    white_king_square_before: int
+    black_king_square_before: int
+    game_turn_before: str
+    game_repetition_before: bool
+    game_move_count_before: int
+    piece_not_moved_before: Dict[Any, bool]
+    attacked_squares_by_white_before: list
+    attacked_squares_by_black_before: list
+    white_king_is_pinned_before: bool
+    black_king_is_pinned_before: bool
+    white_queen_is_pinned_before: bool
+    black_queen_is_pinned_before: bool
 
 
 class ChessGame():
@@ -78,7 +99,6 @@ class ChessGame():
                 return False
         return True
             
-
     def load_position_from_fen(self, board, fen):
         """Places pieces on the board based on the FEN string"""
         pieces = {'p':Pawn, 'r':Rook , 'n':Knight, 'b':Bishop, 'q':Queen, 'k':King}
@@ -117,7 +137,6 @@ class ChessGame():
         self.white_piece_value = white_piece_value // 100
         self.black_piece_value = black_piece_value // 100
         
-
     def get_algebraic_notation(self, board):
         # Adds the chess notation for last move to log
         piece, original_square, new_square, is_capture = board.last_move
@@ -196,8 +215,7 @@ class ChessGame():
             elif w_row == 7 or w_col == 7:
                 self.black_eval += 300
 
-            
-            
+                    
     def evaluate_color(self, board, color):
         evaluation = 0
         
@@ -254,7 +272,6 @@ class ChessGame():
                 def_count = self.attacked_squares_by_white.count(square)
                 evaluation += (def_count * 3)
 
-
             else:
                 if isinstance(piece, King):
                     if self.piece_count > 10:
@@ -307,7 +324,99 @@ class ChessGame():
                 board.move_piece(original_square, new_square)
         else:
             board.move_piece(original_square, new_square)
-        
+
+    def make_move_for_search(self, board, original_square, new_square):
+        """move for search with previous state"""
+        # Snapshot board arrays
+        board_board = list(board.board)
+        board_int_board = list(board.int_board)
+        board_last_move = board.last_move
+        board_move_log_len = len(board.move_log)
+        board_board_state_log_len = len(board.board_state_log)
+
+        # Snapshot king squares
+        white_king_square_before = board.white_king_square
+        black_king_square_before = board.black_king_square
+
+        # Snapshot game state
+        game_turn_before = self.turn
+        game_repetition_before = self.repetition
+        game_move_count_before = self.move_count
+
+        # Snapshot not_moved flag
+        piece_not_moved_before: Dict[Any, bool] = {}
+        for piece in board.board:
+            if piece is not None and hasattr(piece, "not_moved"):
+                piece_not_moved_before[piece] = piece.not_moved
+
+        # Snapshot attacked squares and pinned flags
+        attacked_squares_by_white_before = list(self.attacked_squares_by_white)
+        attacked_squares_by_black_before = list(self.attacked_squares_by_black)
+        white_king_is_pinned_before = self.white_king_is_pinned
+        black_king_is_pinned_before = self.black_king_is_pinned
+        white_queen_is_pinned_before = self.white_queen_is_pinned
+        black_queen_is_pinned_before = self.black_queen_is_pinned
+
+        state = SearchMoveState(
+            board_board=board_board,
+            board_int_board=board_int_board,
+            board_last_move=board_last_move,
+            board_move_log_len=board_move_log_len,
+            board_board_state_log_len=board_board_state_log_len,
+            white_king_square_before=white_king_square_before,
+            black_king_square_before=black_king_square_before,
+            game_turn_before=game_turn_before,
+            game_repetition_before=game_repetition_before,
+            game_move_count_before=game_move_count_before,
+            piece_not_moved_before=piece_not_moved_before,
+            attacked_squares_by_white_before=attacked_squares_by_white_before,
+            attacked_squares_by_black_before=attacked_squares_by_black_before,
+            white_king_is_pinned_before=white_king_is_pinned_before,
+            black_king_is_pinned_before=black_king_is_pinned_before,
+            white_queen_is_pinned_before=white_queen_is_pinned_before,
+            black_queen_is_pinned_before=black_queen_is_pinned_before,
+        )
+
+        self.execute_move(board, original_square, new_square)
+        self.update_gamestate_for_search(board)
+
+        return state
+
+    def unmake_move_for_search(self, board, state: SearchMoveState):
+        """undo move made in search based on state"""
+        # Restore board arrays
+        board.board = list(state.board_board)
+        board.int_board = list(state.board_int_board)
+
+        # Restore last_move and logs
+        board.last_move = state.board_last_move
+
+        while len(board.move_log) > state.board_move_log_len:
+            board.move_log.pop()
+        while len(board.board_state_log) > state.board_board_state_log_len:
+            board.board_state_log.pop()
+
+        # Restore king squares
+        board.white_king_square = state.white_king_square_before
+        board.black_king_square = state.black_king_square_before
+
+        # Restore game state
+        self.turn = state.game_turn_before
+        self.repetition = state.game_repetition_before
+        self.move_count = state.game_move_count_before
+
+        # Restore not_moved flags
+        for piece, not_moved in state.piece_not_moved_before.items():
+            piece.not_moved = not_moved
+
+        # Restore attacked squares and pinned flags
+        self.attacked_squares_by_white = state.attacked_squares_by_white_before
+        self.attacked_squares_by_black = state.attacked_squares_by_black_before
+        self.white_king_is_pinned = state.white_king_is_pinned_before
+        self.black_king_is_pinned = state.black_king_is_pinned_before
+        self.white_queen_is_pinned = state.white_queen_is_pinned_before
+        self.black_queen_is_pinned = state.black_queen_is_pinned_before
+
     def update_gamestate(self, board):
         self.update_attacked_squares(board)
         self.swap_turn()
@@ -317,7 +426,17 @@ class ChessGame():
         if board.board_state_log.count(board_state) >= 3:
             self.repetition = True
             
-        
+    def update_gamestate_for_search(self, board):
+        """Lighter version of update_gamestate used inside minimax"""
+        self.update_attacked_squares(board)
+        self.swap_turn()
+        self.update_attacked_squares(board)
+
+        # repetition
+        board_state = board.board_state_log[-1]
+        self.repetition = board.board_state_log.count(board_state) >= 3
+
+
     def update_attacked_squares(self, board, color=None):
         if not color:
             color = self.turn
@@ -409,18 +528,19 @@ class ChessGame():
         else:
             king_is_pinned = self.black_king_is_pinned
 
+       
         if (self.king_in_check(board) or king_is_pinned) and valid_moves:
-            # valid_moves might be psudo legal and have to perform extra test on them
+            # valid_moves might be pseudo legal, filter out moves that leave king in check
             valid_valid_moves = []
             for move in valid_moves:
-                temp_board = deepcopy(board)
-                temp_game = deepcopy(self)
-                temp_game.execute_move(temp_board, start_square, move)
-                temp_game.update_attacked_squares(temp_board)
-                if not temp_game.king_in_check(temp_board, color):
-                    valid_valid_moves.append(move)
+                state = self.make_move_for_search(board, start_square, move)
+                try:
+                    if not self.king_in_check(board, color):
+                        valid_valid_moves.append(move)
+                finally:
+                    self.unmake_move_for_search(board, state)
             return valid_valid_moves if valid_valid_moves else None
-            
+
         return valid_moves if valid_moves else None
     
 
