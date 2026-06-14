@@ -69,7 +69,7 @@ class ChessBoard:
     def get_piece(self, square):
         return self.board[square]
 
-    def move_piece(self, original_square, new_square):
+    def move_piece(self, original_square, new_square, log_state=True):
         """ Move a piece to a new square on the board """
         is_capture_move = self.contains_piece(new_square)
         self.last_move = (self.get_piece(original_square), original_square, new_square, is_capture_move)
@@ -83,16 +83,17 @@ class ChessBoard:
 
         self.move_log.append(self.last_move)
 
-        self.board_state_log.append(hash(tuple(self.int_board)))
+        if log_state:
+            self.board_state_log.append(hash(tuple(self.int_board)))
         
 
-    def move_king(self, original_square, new_square, castle=False):
+    def move_king(self, original_square, new_square, castle=False, log_state=True):
         """ Handle king-specific move """
         # Move rook if castling
         if castle:
-            self._move_rook_in_castle(original_square, castle)
+            self._move_rook_in_castle(original_square, castle, log_state=log_state)
 
-        self.move_piece(original_square, new_square)
+        self.move_piece(original_square, new_square, log_state=log_state)
         # update white King
         if original_square == self.white_king_square:
             self.white_king_square = new_square
@@ -101,22 +102,26 @@ class ChessBoard:
             self.black_king_square = new_square
 
 
-    def _move_rook_in_castle(self, king_square, side):
+    def _move_rook_in_castle(self, king_square, side, log_state=True):
         """ Check if king move is castle and moves rook if it is """
         if side == "kingside":
-            self.move_piece(king_square+3, king_square+1)
+            self.move_piece(king_square+3, king_square+1, log_state=log_state)
         else:
-            self.move_piece(king_square-4, king_square-1)
+            self.move_piece(king_square-4, king_square-1, log_state=log_state)
 
 
-    def move_en_passant(self, original_square, new_square):
+    def move_en_passant(self, original_square, new_square, log_state=True):
         pawn_to_take = self.last_move[2]
         self.board[pawn_to_take] = None
-        self.move_piece(original_square, new_square)
+        self.int_board[pawn_to_take] = None
+        self.move_piece(original_square, new_square, log_state=log_state)
+        piece, _, _, _ = self.last_move
+        self.last_move = (piece, original_square, new_square, True)
+        self.move_log[-1] = self.last_move
         
 
-    def move_pawn_promote(self, original_square, new_square, color):
-        self.move_piece(original_square, new_square)
+    def move_pawn_promote(self, original_square, new_square, color, log_state=True):
+        self.move_piece(original_square, new_square, log_state=log_state)
         self.add_piece(Queen(color), new_square)
 
 

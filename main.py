@@ -4,7 +4,7 @@ if __name__ == "__main__":
     from constants import *
     from board import ChessBoard
     from game import ChessGame
-    from AI import ChessAI, handle_ai_move
+    from AI import ChessAI, describe_ai, handle_ai_move
     from gui import GUI
     from test import AIGenerationTest, player_moves_1, excepted_ai_moves_1, player_moves_2, excepted_ai_moves_2, player_moves_3, excepted_ai_moves_3
     
@@ -81,6 +81,9 @@ def main():
                                 ai_black = ChessAI(MED_MODE["depth"], MED_MODE["depth_inc"], "black")
                             else:
                                 ai_black = ChessAI(HARD_MODE["depth"], HARD_MODE["depth_inc"], "black")
+                                ai_black.use_dynamic_depth = HARD_MODE.get("dynamic_depth", False)
+                                ai_black.soft_time_limit = HARD_MODE.get("soft_time_limit")
+                                ai_black.time_limit = HARD_MODE.get("time_limit")
                 else:
                     ai_black = False
 
@@ -93,10 +96,15 @@ def main():
                                 ai_white = ChessAI(MED_MODE["depth"], MED_MODE["depth_inc"], "white")
                             else:
                                 ai_white = ChessAI(HARD_MODE["depth"], HARD_MODE["depth_inc"], "white")
+                                ai_white.use_dynamic_depth = HARD_MODE.get("dynamic_depth", False)
+                                ai_white.soft_time_limit = HARD_MODE.get("soft_time_limit")
+                                ai_white.time_limit = HARD_MODE.get("time_limit")
                 else:
                     ai_white = False
 
                 gui.disable_settings()
+                print(f"White: {describe_ai(ai_white)}")
+                print(f"Black: {describe_ai(ai_black)}")
                 game_running = True
                 stop_btn_press = False 
                 start_btn_press = False
