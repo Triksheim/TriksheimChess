@@ -155,6 +155,20 @@ def check_position_key_en_passant_rights():
     return "same pieces with different en-passant rights produce different keys"
 
 
+def check_queenside_castle_allows_attacked_rook_path_square():
+    move_history = (
+        "e2e4 b8c6 d2d4 g8f6 b1c3 d7d5 c3d5 f6e4 d1f3 d8d5 "
+        "g1e2 c6b4 c2c4 d5f5 c1f4 b4c2 e1d1 c2a1 f4c7 e4f2 "
+        "d1e1 f2h1 f3f5 c8f5 e2g3 a1c2 e1d1 h1g3 c7g3 c2d4 c4c5"
+    ).split()
+    game, board = build_game_from_moves(move_history)
+    castle = uci_to_move("e8c8")
+
+    assert game.turn == "black", f"expected black to move, got {game.turn}"
+    assert castle in legal_moves(game, board), "black queenside castle should be legal when only b8 is attacked"
+    return "black can castle queenside when b8 is attacked but c8/d8 are safe"
+
+
 def check_gui_ai_search_does_not_mutate_live_position():
     game, board = build_game_from_fen(TEST_FEN)
     game.turn = "black"
@@ -559,6 +573,7 @@ def main():
         run_check("en_passant_int_board_consistency", check_en_passant_int_board_consistency),
         run_check("position_key_castling_rights", check_position_key_castling_rights),
         run_check("position_key_en_passant_rights", check_position_key_en_passant_rights),
+        run_check("queenside_castle_allows_attacked_rook_path_square", check_queenside_castle_allows_attacked_rook_path_square),
         run_check("gui_ai_search_does_not_mutate_live_position", check_gui_ai_search_does_not_mutate_live_position),
         run_check("winning_ai_avoids_threefold_repetition", check_winning_ai_avoids_threefold_repetition),
         run_check("winning_ai_avoids_immediate_stalemate", check_winning_ai_avoids_immediate_stalemate),

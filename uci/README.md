@@ -38,9 +38,10 @@ python3 uci/uci.py
 Point your UCI chess GUI at the launcher for your system, or at `uci/uci.py` if
 the GUI supports running Python scripts.
 
-## Default Mode
+## Mode
 
-The adapter uses hard mode by default.
+The adapter always runs in `uci` mode. This mode is separate from the Python
+app's difficulty settings.
 
 ## Supported Commands
 
@@ -51,9 +52,6 @@ The adapter uses hard mode by default.
 - `position fen ... moves ...`
 - `go depth N`
 - `go movetime MS`
-- `setoption name Mode value easy`
-- `setoption name Mode value medium`
-- `setoption name Mode value hard`
 - `setoption name Multiprocessing value true`
 - `stop`
 - `quit`

@@ -1,10 +1,5 @@
 #!/usr/bin/env python3
-"""UCI adapter for TriksheimChessPy.
-
-The original project is a pygame chess app. This module exposes the existing
-hard-mode Python AI as a Universal Chess Interface process so chess GUIs can
-launch it as an engine.
-"""
+"""UCI adapter for TriksheimChessPy."""
 
 import contextlib
 import io
@@ -18,7 +13,7 @@ if str(PROJECT_ROOT) not in sys.path:
 
 from AI import ChessAI
 from board import ChessBoard
-from constants import EASY_MODE, HARD_MODE, MED_MODE, STARTING_FEN
+from constants import HARD_MODE, STARTING_FEN
 from game import ChessGame
 from pieces import Bishop, King, Knight, Pawn, Queen, Rook
 
@@ -31,6 +26,13 @@ PIECES_BY_PROMOTION = {
     "n": Knight,
 }
 START_FEN_FULL = STARTING_FEN + " w KQkq - 0 1"
+UCI_MODE = {
+    "depth": HARD_MODE["depth"],
+    "depth_inc": 0,
+    "dynamic_depth": True,
+    "soft_time_limit": 1.0,
+    "time_limit": 5.0,
+}
 
 
 def out(text):
@@ -197,7 +199,8 @@ def parse_go(command):
 
 class TriksheimPyUci:
     def __init__(self):
-        self.mode = "hard"
+        self.multiprocessing_enabled = True
+        self.position_error = None
         self.game, self.board = load_full_fen(START_FEN_FULL)
         self.ais = {}
         self.ensure_ai("white")
@@ -205,6 +208,7 @@ class TriksheimPyUci:
 
     def new_game(self):
         self.game, self.board = load_full_fen(START_FEN_FULL)
+        self.position_error = None
         for ai in self.ais.values():
             ai.close_pool()
         self.ais = {}
@@ -212,11 +216,7 @@ class TriksheimPyUci:
         self.ensure_ai("black")
 
     def mode_config(self):
-        if self.mode == "easy":
-            return EASY_MODE
-        if self.mode == "medium":
-            return MED_MODE
-        return HARD_MODE
+        return UCI_MODE
 
     def ensure_ai(self, color):
         ai = self.ais.get(color)
@@ -224,7 +224,7 @@ class TriksheimPyUci:
             return ai
         config = self.mode_config()
         ai = ChessAI(config["depth"], config["depth_inc"], color)
-        ai.use_multiprocessing = True
+        ai.use_multiprocessing = self.multiprocessing_enabled
         ai.use_dynamic_depth = config.get("dynamic_depth", False)
         ai.soft_time_limit = config.get("soft_time_limit")
         ai.time_limit = config.get("time_limit")
@@ -233,39 +233,57 @@ class TriksheimPyUci:
 
     def set_option(self, command):
         lower = command.lower()
-        if "name mode" in lower and "value" in lower:
-            value = command[lower.index("value") + len("value"):].strip().lower()
-            if value in {"easy", "medium", "hard"}:
-                self.mode = value
-                self.new_game()
-        elif "name multiprocessing" in lower and "value" in lower:
+        if "name multiprocessing" in lower and "value" in lower:
             value = command[lower.index("value") + len("value"):].strip().lower()
             enabled = value not in {"false", "0", "off", "no"}
+            self.multiprocessing_enabled = enabled
             for ai in self.ais.values():
                 ai.use_multiprocessing = enabled
 
     def set_position(self, command):
         fen, moves = parse_position(command)
-        self.game, self.board = load_full_fen(fen)
+        game, board = load_full_fen(fen)
         for move in moves:
-            apply_move(self.game, self.board, move)
+            apply_move(game, board, move)
+        self.game, self.board = game, board
+        self.position_error = None
 
     def bestmove(self, go_params):
+        if self.position_error:
+            out(f"info string position error: {self.position_error}")
+            return "0000"
+
         color = self.game.turn
         ai = self.ensure_ai(color)
         config = self.mode_config()
-        ai.depth = config["depth"]
-        ai.use_depth_inc = config.get("depth_inc", 0) > 0
-        ai.depth_inc_limit = config.get("depth_inc", 0)
+        requested_depth = go_params.get("depth")
+        requested_movetime = go_params.get("movetime")
+        has_depth = isinstance(requested_depth, int) and requested_depth > 0
+        has_movetime = isinstance(requested_movetime, int) and requested_movetime > 0
+
+        if has_depth:
+            ai.depth = max(1, min(requested_depth, 30))
+            ai.use_depth_inc = False
+            ai.depth_inc_limit = 0
+        else:
+            ai.depth = config["depth"]
+            ai.use_depth_inc = config.get("depth_inc", 0) > 0
+            ai.depth_inc_limit = config.get("depth_inc", 0)
+
         ai.use_dynamic_depth = config.get("dynamic_depth", False)
         ai.soft_time_limit = config.get("soft_time_limit")
         ai.time_limit = config.get("time_limit")
 
-        if "movetime" in go_params and go_params["movetime"] > 0:
-            seconds = max(0.05, go_params["movetime"] / 1000)
+        if has_depth and not has_movetime:
+            ai.use_dynamic_depth = False
+            ai.soft_time_limit = None
+            ai.time_limit = None
+
+        if has_movetime:
+            seconds = max(0.01, requested_movetime / 1000)
             ai.use_dynamic_depth = True
             ai.soft_time_limit = seconds
-            ai.time_limit = max(seconds + 0.05, seconds * 1.25)
+            ai.time_limit = seconds
 
         start = time.perf_counter()
         try:
@@ -299,7 +317,6 @@ def main():
             if command == "uci":
                 out("id name TriksheimChess Py")
                 out("id author Martin")
-                out("option name Mode type combo default hard var easy var medium var hard")
                 out("option name Multiprocessing type check default true")
                 out("uciok")
             elif command == "isready":
@@ -312,6 +329,7 @@ def main():
                 try:
                     engine.set_position(command)
                 except Exception as exc:
+                    engine.position_error = str(exc)
                     out(f"info string position error: {exc}")
             elif command.startswith("go"):
                 best = engine.bestmove(parse_go(command))

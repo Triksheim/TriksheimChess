@@ -991,10 +991,15 @@ class ChessGame():
             return False
 
         direction = 1 if is_king_side else -1
-        check_squares = [1, 2] if is_king_side else [1, 2, 3]
+        empty_steps = (1, 2) if is_king_side else (1, 2, 3)
+        safe_steps = (1, 2)
 
-        for i in check_squares:
-            if board.contains_piece(king_square + i * direction) or (king_square + i * direction in attacked_squares):
+        for i in empty_steps:
+            if board.contains_piece(king_square + i * direction):
+                return False
+
+        for i in safe_steps:
+            if king_square + i * direction in attacked_squares:
                 return False
 
         rook_square = king_square + (3 if is_king_side else 4) * direction
@@ -1009,4 +1014,3 @@ class ChessGame():
     def eligible_to_en_passant(self, board, neighbour_piece):
         last_piece, last_move_original_square, last_move_to_square, is_capture = board.last_move
         return isinstance(last_piece, Pawn) and abs(last_move_to_square - last_move_original_square) == 16 and (last_piece == neighbour_piece)
-
